@@ -14,11 +14,11 @@ interface Compra {
   data: string;
   insumo: string;
   quantidade: number;
+  valorPorUnidade: number;
   valorTotal: number;
   fornecedor: string;
   qtdeTotalKg: number;
   valorPorKg: number;
-  valorPorUnidade: number;
 }
 
 interface InsumoData {
@@ -33,7 +33,7 @@ const ComprasInsumos = () => {
     data: '',
     insumo: '',
     quantidade: '',
-    valorTotal: '',
+    valorPorUnidade: '',
     fornecedor: ''
   });
   const { toast } = useToast();
@@ -54,10 +54,17 @@ const ComprasInsumos = () => {
   const shouldShowValuePerUnit = insumoSelecionado && 
     ['Saco', 'Caixa', 'Fardo', 'Unidade'].includes(insumoSelecionado.unidade);
 
+  // Calcula valores automaticamente
+  const quantidade = parseFloat(novaCompra.quantidade) || 0;
+  const valorPorUnidade = parseFloat(novaCompra.valorPorUnidade) || 0;
+  const valorTotal = quantidade * valorPorUnidade;
+  const qtdeTotalKg = insumoSelecionado ? quantidade * insumoSelecionado.fatorConversaoKg : 0;
+  const valorPorKg = qtdeTotalKg > 0 ? valorTotal / qtdeTotalKg : 0;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!novaCompra.data || !novaCompra.insumo || !novaCompra.quantidade || !novaCompra.valorTotal) {
+    if (!novaCompra.data || !novaCompra.insumo || !novaCompra.quantidade || !novaCompra.valorPorUnidade) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
@@ -76,30 +83,24 @@ const ComprasInsumos = () => {
       return;
     }
 
-    const quantidade = parseFloat(novaCompra.quantidade);
-    const valorTotal = parseFloat(novaCompra.valorTotal);
-    const qtdeTotalKg = quantidade * insumoData.fatorConversaoKg;
-    const valorPorKg = qtdeTotalKg > 0 ? valorTotal / qtdeTotalKg : 0;
-    const valorPorUnidade = quantidade > 0 ? valorTotal / quantidade : 0;
-
     const compra: Compra = {
       id: Date.now().toString(),
       data: novaCompra.data,
       insumo: novaCompra.insumo,
       quantidade: quantidade,
+      valorPorUnidade: valorPorUnidade,
       valorTotal: valorTotal,
       fornecedor: novaCompra.fornecedor,
       qtdeTotalKg: qtdeTotalKg,
-      valorPorKg: valorPorKg,
-      valorPorUnidade: valorPorUnidade
+      valorPorKg: valorPorKg
     };
 
     setCompras([...compras, compra]);
-    setNovaCompra({ data: '', insumo: '', quantidade: '', valorTotal: '', fornecedor: '' });
+    setNovaCompra({ data: '', insumo: '', quantidade: '', valorPorUnidade: '', fornecedor: '' });
     
     toast({
       title: "Sucesso",
-      description: `Compra registrada! ${qtdeTotalKg}kg adicionados ao estoque.`
+      description: `Compra registrada! ${qtdeTotalKg.toFixed(2)}kg adicionados ao estoque.`
     });
   };
 
@@ -160,33 +161,40 @@ const ComprasInsumos = () => {
               />
               {insumoSelecionado && novaCompra.quantidade && (
                 <p className="text-xs text-green-600">
-                  = {(parseFloat(novaCompra.quantidade) * insumoSelecionado.fatorConversaoKg).toFixed(2)} KG
+                  = {qtdeTotalKg.toFixed(2)} KG
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="valorTotal">Valor Total (R$) *</Label>
+              <Label htmlFor="valorPorUnidade">
+                Valor por {insumoSelecionado?.unidade || 'Unidade'} (R$) *
+              </Label>
               <Input
-                id="valorTotal"
+                id="valorPorUnidade"
                 type="number"
                 step="0.01"
-                value={novaCompra.valorTotal}
-                onChange={(e) => setNovaCompra({...novaCompra, valorTotal: e.target.value})}
+                value={novaCompra.valorPorUnidade}
+                onChange={(e) => setNovaCompra({...novaCompra, valorPorUnidade: e.target.value})}
                 placeholder="0,00"
                 required
               />
-              {insumoSelecionado && novaCompra.quantidade && novaCompra.valorTotal && (
-                <div className="space-y-1">
-                  <p className="text-xs text-blue-600">
-                    = R$ {(parseFloat(novaCompra.valorTotal) / (parseFloat(novaCompra.quantidade) * insumoSelecionado.fatorConversaoKg)).toFixed(2)}/KG
-                  </p>
-                  {shouldShowValuePerUnit && (
-                    <p className="text-xs text-purple-600">
-                      = R$ {(parseFloat(novaCompra.valorTotal) / parseFloat(novaCompra.quantidade)).toFixed(2)}/{insumoSelecionado.unidade}
-                    </p>
-                  )}
-                </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="valorTotal">Valor Total (R$) - Calculado</Label>
+              <Input
+                id="valorTotal"
+                type="text"
+                value={valorTotal > 0 ? `R$ ${valorTotal.toFixed(2)}` : ''}
+                readOnly
+                className="bg-gray-100 font-medium text-green-600"
+                placeholder="Calculado automaticamente"
+              />
+              {valorPorKg > 0 && (
+                <p className="text-xs text-blue-600">
+                  = R$ {valorPorKg.toFixed(2)}/KG
+                </p>
               )}
             </div>
 
@@ -227,16 +235,15 @@ const ComprasInsumos = () => {
                   <TableHead>Insumo</TableHead>
                   <TableHead>Qtde Comprada</TableHead>
                   <TableHead>Total em KG</TableHead>
+                  <TableHead>Valor/Unidade</TableHead>
                   <TableHead>Valor Total</TableHead>
                   <TableHead>Valor/KG</TableHead>
-                  <TableHead>Valor/Unidade</TableHead>
                   <TableHead>Fornecedor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {compras.map((compra) => {
                   const insumoInfo = insumosDisponiveis.find(i => i.nome === compra.insumo);
-                  const showValuePerUnit = insumoInfo && ['Saco', 'Caixa', 'Fardo', 'Unidade'].includes(insumoInfo.unidade);
                   
                   return (
                     <TableRow key={compra.id}>
@@ -244,15 +251,9 @@ const ComprasInsumos = () => {
                       <TableCell className="font-medium">{compra.insumo}</TableCell>
                       <TableCell>{compra.quantidade}</TableCell>
                       <TableCell className="font-medium text-green-600">{compra.qtdeTotalKg.toFixed(2)} KG</TableCell>
-                      <TableCell>R$ {compra.valorTotal.toFixed(2)}</TableCell>
+                      <TableCell className="text-purple-600">R$ {compra.valorPorUnidade.toFixed(2)}/{insumoInfo?.unidade}</TableCell>
+                      <TableCell className="font-medium">R$ {compra.valorTotal.toFixed(2)}</TableCell>
                       <TableCell className="text-blue-600">R$ {compra.valorPorKg.toFixed(2)}/KG</TableCell>
-                      <TableCell className="text-purple-600">
-                        {showValuePerUnit ? (
-                          `R$ ${compra.valorPorUnidade.toFixed(2)}/${insumoInfo?.unidade}`
-                        ) : (
-                          '-'
-                        )}
-                      </TableCell>
                       <TableCell>{compra.fornecedor}</TableCell>
                     </TableRow>
                   );
