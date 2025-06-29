@@ -13,7 +13,7 @@ interface Insumo {
   id: string;
   nome: string;
   unidade: string;
-  custoPorUnidade: number;
+  fatorConversaoKg: number;
   estoqueMinimo: number;
 }
 
@@ -22,7 +22,7 @@ const CadastroInsumos = () => {
   const [novoInsumo, setNovoInsumo] = useState({
     nome: '',
     unidade: '',
-    custoPorUnidade: '',
+    fatorConversaoKg: '',
     estoqueMinimo: ''
   });
   const { toast } = useToast();
@@ -30,7 +30,7 @@ const CadastroInsumos = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!novoInsumo.nome || !novoInsumo.unidade || !novoInsumo.custoPorUnidade) {
+    if (!novoInsumo.nome || !novoInsumo.unidade || !novoInsumo.fatorConversaoKg) {
       toast({
         title: "Erro",
         description: "Preencha todos os campos obrigatórios",
@@ -43,12 +43,12 @@ const CadastroInsumos = () => {
       id: Date.now().toString(),
       nome: novoInsumo.nome,
       unidade: novoInsumo.unidade,
-      custoPorUnidade: parseFloat(novoInsumo.custoPorUnidade),
+      fatorConversaoKg: parseFloat(novoInsumo.fatorConversaoKg),
       estoqueMinimo: parseFloat(novoInsumo.estoqueMinimo) || 0
     };
 
     setInsumos([...insumos, insumo]);
-    setNovoInsumo({ nome: '', unidade: '', custoPorUnidade: '', estoqueMinimo: '' });
+    setNovoInsumo({ nome: '', unidade: '', fatorConversaoKg: '', estoqueMinimo: '' });
     
     toast({
       title: "Sucesso",
@@ -79,7 +79,7 @@ const CadastroInsumos = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="unidade">Unidade *</Label>
+              <Label htmlFor="unidade">Unidade de Compra *</Label>
               <Select 
                 value={novoInsumo.unidade} 
                 onValueChange={(value) => setNovoInsumo({...novoInsumo, unidade: value})}
@@ -89,29 +89,32 @@ const CadastroInsumos = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="KG">KG</SelectItem>
+                  <SelectItem value="Saco">Saco</SelectItem>
                   <SelectItem value="Litro">Litro</SelectItem>
                   <SelectItem value="Unidade">Unidade</SelectItem>
-                  <SelectItem value="Saco">Saco</SelectItem>
                   <SelectItem value="Tonelada">Tonelada</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="custo">Custo por Unidade (R$) *</Label>
+              <Label htmlFor="fatorConversao">Fator de Conversão para KG *</Label>
               <Input
-                id="custo"
+                id="fatorConversao"
                 type="number"
                 step="0.01"
-                value={novoInsumo.custoPorUnidade}
-                onChange={(e) => setNovoInsumo({...novoInsumo, custoPorUnidade: e.target.value})}
-                placeholder="0,00"
+                value={novoInsumo.fatorConversaoKg}
+                onChange={(e) => setNovoInsumo({...novoInsumo, fatorConversaoKg: e.target.value})}
+                placeholder="Ex: 50 (se 1 saco = 50kg)"
                 required
               />
+              <p className="text-xs text-gray-500">
+                Quantos KG tem em 1 {novoInsumo.unidade || 'unidade'}
+              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="estoqueMinimo">Estoque Mínimo</Label>
+              <Label htmlFor="estoqueMinimo">Estoque Mínimo (KG)</Label>
               <Input
                 id="estoqueMinimo"
                 type="number"
@@ -146,9 +149,9 @@ const CadastroInsumos = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome do Insumo</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead>Custo/Unidade</TableHead>
-                  <TableHead>Estoque Mínimo</TableHead>
+                  <TableHead>Unidade de Compra</TableHead>
+                  <TableHead>Fator Conversão (KG)</TableHead>
+                  <TableHead>Estoque Mínimo (KG)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -156,8 +159,8 @@ const CadastroInsumos = () => {
                   <TableRow key={insumo.id}>
                     <TableCell className="font-medium">{insumo.nome}</TableCell>
                     <TableCell>{insumo.unidade}</TableCell>
-                    <TableCell>R$ {insumo.custoPorUnidade.toFixed(2)}</TableCell>
-                    <TableCell>{insumo.estoqueMinimo} {insumo.unidade}</TableCell>
+                    <TableCell>{insumo.fatorConversaoKg} KG/{insumo.unidade}</TableCell>
+                    <TableCell>{insumo.estoqueMinimo} KG</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

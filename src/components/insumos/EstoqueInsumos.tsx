@@ -5,12 +5,14 @@ import { Badge } from "@/components/ui/badge";
 
 interface EstoqueItem {
   insumo: string;
-  entradas: number;
-  saidas: number;
-  estoqueAtual: number;
-  custoUnitario: number;
+  entradasKg: number;
+  saidasKg: number;
+  estoqueAtualKg: number;
+  valorMedioKg: number;
   custoEstoque: number;
   estoqueMinimo: number;
+  unidadeCompra: string;
+  fatorConversao: number;
 }
 
 const EstoqueInsumos = () => {
@@ -18,30 +20,36 @@ const EstoqueInsumos = () => {
   const estoque: EstoqueItem[] = [
     {
       insumo: 'Milho',
-      entradas: 1000,
-      saidas: 200,
-      estoqueAtual: 800,
-      custoUnitario: 1.50,
-      custoEstoque: 1200,
-      estoqueMinimo: 100
+      entradasKg: 1000,
+      saidasKg: 200,
+      estoqueAtualKg: 800,
+      valorMedioKg: 1.30,
+      custoEstoque: 1040,
+      estoqueMinimo: 100,
+      unidadeCompra: 'Saco',
+      fatorConversao: 50
     },
     {
       insumo: 'Soja',
-      entradas: 500,
-      saidas: 100,
-      estoqueAtual: 400,
-      custoUnitario: 2.80,
+      entradasKg: 500,
+      saidasKg: 100,
+      estoqueAtualKg: 400,
+      valorMedioKg: 2.80,
       custoEstoque: 1120,
-      estoqueMinimo: 50
+      estoqueMinimo: 50,
+      unidadeCompra: 'Saco',
+      fatorConversao: 50
     },
     {
       insumo: 'Farelo de Trigo',
-      entradas: 300,
-      saidas: 280,
-      estoqueAtual: 20,
-      custoUnitario: 1.20,
+      entradasKg: 240,
+      saidasKg: 220,
+      estoqueAtualKg: 20,
+      valorMedioKg: 1.20,
       custoEstoque: 24,
-      estoqueMinimo: 100
+      estoqueMinimo: 100,
+      unidadeCompra: 'Saco',
+      fatorConversao: 40
     }
   ];
 
@@ -56,10 +64,11 @@ const EstoqueInsumos = () => {
   };
 
   const valorTotalEstoque = estoque.reduce((total, item) => total + item.custoEstoque, 0);
+  const alertasEstoque = estoque.filter(item => item.estoqueAtualKg <= item.estoqueMinimo).length;
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Valor Total do Estoque</CardTitle>
@@ -80,11 +89,22 @@ const EstoqueInsumos = () => {
 
         <Card>
           <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total em KG</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {estoque.reduce((total, item) => total + item.estoqueAtualKg, 0).toFixed(0)} KG
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Alertas de Estoque</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {estoque.filter(item => item.estoqueAtual <= item.estoqueMinimo).length}
+              {alertasEstoque}
             </div>
           </CardContent>
         </Card>
@@ -92,7 +112,7 @@ const EstoqueInsumos = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Controle de Estoque</CardTitle>
+          <CardTitle>Controle de Estoque (Padronizado em KG)</CardTitle>
         </CardHeader>
         <CardContent>
           {estoque.length === 0 ? (
@@ -104,10 +124,11 @@ const EstoqueInsumos = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Insumo</TableHead>
-                  <TableHead>Entradas</TableHead>
-                  <TableHead>Saídas</TableHead>
-                  <TableHead>Estoque Atual</TableHead>
-                  <TableHead>Custo/Unidade</TableHead>
+                  <TableHead>Entradas (KG)</TableHead>
+                  <TableHead>Saídas (KG)</TableHead>
+                  <TableHead>Estoque Atual (KG)</TableHead>
+                  <TableHead>Equivale a</TableHead>
+                  <TableHead>Valor Médio/KG</TableHead>
                   <TableHead>Custo do Estoque</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -116,12 +137,17 @@ const EstoqueInsumos = () => {
                 {estoque.map((item) => (
                   <TableRow key={item.insumo}>
                     <TableCell className="font-medium">{item.insumo}</TableCell>
-                    <TableCell>{item.entradas}</TableCell>
-                    <TableCell>{item.saidas}</TableCell>
-                    <TableCell className="font-medium">{item.estoqueAtual}</TableCell>
-                    <TableCell>R$ {item.custoUnitario.toFixed(2)}</TableCell>
+                    <TableCell>{item.entradasKg.toFixed(1)} KG</TableCell>
+                    <TableCell>{item.saidasKg.toFixed(1)} KG</TableCell>
+                    <TableCell className="font-medium text-green-600">
+                      {item.estoqueAtualKg.toFixed(1)} KG
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {(item.estoqueAtualKg / item.fatorConversao).toFixed(1)} {item.unidadeCompra}
+                    </TableCell>
+                    <TableCell>R$ {item.valorMedioKg.toFixed(2)}</TableCell>
                     <TableCell>R$ {item.custoEstoque.toFixed(2)}</TableCell>
-                    <TableCell>{getStatusBadge(item.estoqueAtual, item.estoqueMinimo)}</TableCell>
+                    <TableCell>{getStatusBadge(item.estoqueAtualKg, item.estoqueMinimo)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
