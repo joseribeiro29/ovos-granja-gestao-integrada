@@ -1,0 +1,306 @@
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useNavigate } from "react-router-dom";
+import { ArrowDownUp, PlusIcon } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+interface Galpao {
+  id: string;
+  nome: string;
+  lote: string;
+  qtdeAves: number;
+  estoqueAtualOvosBons: number;
+  totalGeralPerdas: number;
+}
+
+interface Venda {
+  id: string;
+  data: string;
+  cliente: string;
+  galpaoId: string;
+  galpaoNome: string;
+  produto: string;
+  qtdeVendida: number;
+  valorUnitario: number;
+  valorTotal: number;
+}
+
+const Vendas = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [galpoes, setGalpoes] = useState<Galpao[]>([]);
+  const [vendas, setVendas] = useState<Venda[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    data: "",
+    cliente: "",
+    galpaoId: "",
+    produto: "",
+    qtdeVendida: 0,
+    valorUnitario: 0
+  });
+
+  useEffect(() => {
+    const savedGalpoes = localStorage.getItem('galpoes');
+    if (savedGalpoes) {
+      setGalpoes(JSON.parse(savedGalpoes));
+    }
+
+    const savedVendas = localStorage.getItem('vendas');
+    if (savedVendas) {
+      setVendas(JSON.parse(savedVendas));
+    }
+  }, []);
+
+  const saveVendas = (newVendas: Venda[]) => {
+    localStorage.setItem('vendas', JSON.stringify(newVendas));
+    setVendas(newVendas);
+  };
+
+  const updateGalpaoEstoque = (galpaoId: string, qtdeVendida: number) => {
+    const updatedGalpoes = galpoes.map(galpao => {
+      if (galpao.id === galpaoId) {
+        return {
+          ...galpao,
+          estoqueAtualOvosBons: galpao.estoqueAtualOvosBons - qtdeVendida
+        };
+      }
+      return galpao;
+    });
+    
+    localStorage.setItem('galpoes', JSON.stringify(updatedGalpoes));
+    setGalpoes(updatedGalpoes);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const selectedGalpao = galpoes.find(g => g.id === formData.galpaoId);
+    if (!selectedGalpao) {
+      toast({
+        title: "Erro",
+        description: "Selecione um galpão válido.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validação de estoque
+    if (formData.qtdeVendida > selectedGalpao.estoqueAtualOvosBons) {
+      toast({
+        title: "Estoque insuficiente!",
+        description: `O galpão ${selectedGalpao.nome} possui apenas ${selectedGalpao.estoqueAtualOvosBons} ovos em estoque.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const valorTotal = formData.qtdeVendida * formData.valorUnitario;
+
+    const newVenda: Venda = {
+      id: Date.now().toString(),
+      data: formData.data,
+      cliente: formData.cliente,
+      galpaoId: formData.galpaoId,
+      galpaoNome: selectedGalpao.nome,
+      produto: formData.produto,
+      qtdeVendida: formData.qtdeVendida,
+      valorUnitario: formData.valorUnitario,
+      valorTotal: valorTotal
+    };
+
+    const updatedVendas = [...vendas, newVenda];
+    saveVendas(updatedVendas);
+
+    // Atualizar estoque do galpão
+    updateGalpaoEstoque(formData.galpaoId, formData.qtdeVendida);
+
+    toast({
+      title: "Sucesso!",
+      description: `Venda registrada. ${formData.qtdeVendida} ovos deduzidos do estoque do ${selectedGalpao.nome}.`,
+    });
+
+    setFormData({ data: "", cliente: "", galpaoId: "", produto: "", qtdeVendida: 0, valorUnitario: 0 });
+    setShowForm(false);
+  };
+
+  const valorTotal = formData.qtdeVendida * formData.valorUnitario;
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Vendas
+            </h1>
+            <p className="text-gray-600">
+              Gestão de vendas e saída de estoque por galpão
+            </p>
+          </div>
+          <Button onClick={() => navigate('/')} variant="outline">
+            <ArrowDownUp className="mr-2 h-4 w-4" />
+            Voltar ao Dashboard
+          </Button>
+        </div>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Registrar Nova Venda</CardTitle>
+              <Button onClick={() => setShowForm(!showForm)}>
+                <PlusIcon className="mr-2 h-4 w-4" />
+                Nova Venda
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {showForm && (
+              <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg bg-gray-50">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="data">Data</Label>
+                    <Input
+                      id="data"
+                      type="date"
+                      value={formData.data}
+                      onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cliente">Cliente</Label>
+                    <Input
+                      id="cliente"
+                      value={formData.cliente}
+                      onChange={(e) => setFormData({ ...formData, cliente: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="galpao">Galpão (Origem do Estoque)</Label>
+                    <Select value={formData.galpaoId} onValueChange={(value) => setFormData({ ...formData, galpaoId: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o galpão" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {galpoes.map((galpao) => (
+                          <SelectItem key={galpao.id} value={galpao.id}>
+                            {galpao.nome} - Estoque: {galpao.estoqueAtualOvosBons} ovos
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="produto">Produto</Label>
+                    <Select value={formData.produto} onValueChange={(value) => setFormData({ ...formData, produto: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o produto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Dúzia de Ovos">Dúzia de Ovos</SelectItem>
+                        <SelectItem value="Caixa de Ovos (30 unid)">Caixa de Ovos (30 unid)</SelectItem>
+                        <SelectItem value="Bandeja de Ovos">Bandeja de Ovos</SelectItem>
+                        <SelectItem value="Ovos Avulsos">Ovos Avulsos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="qtdeVendida">Qtde Vendida (ovos)</Label>
+                    <Input
+                      id="qtdeVendida"
+                      type="number"
+                      value={formData.qtdeVendida}
+                      onChange={(e) => setFormData({ ...formData, qtdeVendida: Number(e.target.value) })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="valorUnitario">Valor por Ovo (R$)</Label>
+                    <Input
+                      id="valorUnitario"
+                      type="number"
+                      step="0.01"
+                      value={formData.valorUnitario}
+                      onChange={(e) => setFormData({ ...formData, valorUnitario: Number(e.target.value) })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Valor Total (R$)</Label>
+                    <div className="p-2 bg-gray-100 border rounded-md font-bold text-green-600">
+                      R$ {valorTotal.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit">Registrar Venda</Button>
+                  <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Histórico de Vendas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Galpão</TableHead>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>Qtde</TableHead>
+                  <TableHead>Valor Unit.</TableHead>
+                  <TableHead>Valor Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {vendas.map((venda) => (
+                  <TableRow key={venda.id}>
+                    <TableCell>{new Date(venda.data).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="font-medium">{venda.cliente}</TableCell>
+                    <TableCell>{venda.galpaoNome}</TableCell>
+                    <TableCell>{venda.produto}</TableCell>
+                    <TableCell>{venda.qtdeVendida}</TableCell>
+                    <TableCell>R$ {venda.valorUnitario.toFixed(2)}</TableCell>
+                    <TableCell className="font-bold text-green-600">R$ {venda.valorTotal.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {vendas.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                Nenhuma venda registrada ainda.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default Vendas;
