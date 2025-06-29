@@ -18,6 +18,7 @@ interface Compra {
   fornecedor: string;
   qtdeTotalKg: number;
   valorPorKg: number;
+  valorPorUnidade: number;
 }
 
 interface InsumoData {
@@ -49,6 +50,10 @@ const ComprasInsumos = () => {
 
   const insumoSelecionado = insumosDisponiveis.find(i => i.nome === novaCompra.insumo);
 
+  // Verifica se deve exibir o valor por unidade (apenas para unidades contáveis)
+  const shouldShowValuePerUnit = insumoSelecionado && 
+    ['Saco', 'Caixa', 'Fardo', 'Unidade'].includes(insumoSelecionado.unidade);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -75,6 +80,7 @@ const ComprasInsumos = () => {
     const valorTotal = parseFloat(novaCompra.valorTotal);
     const qtdeTotalKg = quantidade * insumoData.fatorConversaoKg;
     const valorPorKg = qtdeTotalKg > 0 ? valorTotal / qtdeTotalKg : 0;
+    const valorPorUnidade = quantidade > 0 ? valorTotal / quantidade : 0;
 
     const compra: Compra = {
       id: Date.now().toString(),
@@ -84,7 +90,8 @@ const ComprasInsumos = () => {
       valorTotal: valorTotal,
       fornecedor: novaCompra.fornecedor,
       qtdeTotalKg: qtdeTotalKg,
-      valorPorKg: valorPorKg
+      valorPorKg: valorPorKg,
+      valorPorUnidade: valorPorUnidade
     };
 
     setCompras([...compras, compra]);
@@ -170,9 +177,16 @@ const ComprasInsumos = () => {
                 required
               />
               {insumoSelecionado && novaCompra.quantidade && novaCompra.valorTotal && (
-                <p className="text-xs text-blue-600">
-                  = R$ {(parseFloat(novaCompra.valorTotal) / (parseFloat(novaCompra.quantidade) * insumoSelecionado.fatorConversaoKg)).toFixed(2)}/KG
-                </p>
+                <div className="space-y-1">
+                  <p className="text-xs text-blue-600">
+                    = R$ {(parseFloat(novaCompra.valorTotal) / (parseFloat(novaCompra.quantidade) * insumoSelecionado.fatorConversaoKg)).toFixed(2)}/KG
+                  </p>
+                  {shouldShowValuePerUnit && (
+                    <p className="text-xs text-purple-600">
+                      = R$ {(parseFloat(novaCompra.valorTotal) / parseFloat(novaCompra.quantidade)).toFixed(2)}/{insumoSelecionado.unidade}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 
@@ -215,21 +229,34 @@ const ComprasInsumos = () => {
                   <TableHead>Total em KG</TableHead>
                   <TableHead>Valor Total</TableHead>
                   <TableHead>Valor/KG</TableHead>
+                  <TableHead>Valor/Unidade</TableHead>
                   <TableHead>Fornecedor</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {compras.map((compra) => (
-                  <TableRow key={compra.id}>
-                    <TableCell>{new Date(compra.data).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell className="font-medium">{compra.insumo}</TableCell>
-                    <TableCell>{compra.quantidade}</TableCell>
-                    <TableCell className="font-medium text-green-600">{compra.qtdeTotalKg.toFixed(2)} KG</TableCell>
-                    <TableCell>R$ {compra.valorTotal.toFixed(2)}</TableCell>
-                    <TableCell className="text-blue-600">R$ {compra.valorPorKg.toFixed(2)}/KG</TableCell>
-                    <TableCell>{compra.fornecedor}</TableCell>
-                  </TableRow>
-                ))}
+                {compras.map((compra) => {
+                  const insumoInfo = insumosDisponiveis.find(i => i.nome === compra.insumo);
+                  const showValuePerUnit = insumoInfo && ['Saco', 'Caixa', 'Fardo', 'Unidade'].includes(insumoInfo.unidade);
+                  
+                  return (
+                    <TableRow key={compra.id}>
+                      <TableCell>{new Date(compra.data).toLocaleDateString('pt-BR')}</TableCell>
+                      <TableCell className="font-medium">{compra.insumo}</TableCell>
+                      <TableCell>{compra.quantidade}</TableCell>
+                      <TableCell className="font-medium text-green-600">{compra.qtdeTotalKg.toFixed(2)} KG</TableCell>
+                      <TableCell>R$ {compra.valorTotal.toFixed(2)}</TableCell>
+                      <TableCell className="text-blue-600">R$ {compra.valorPorKg.toFixed(2)}/KG</TableCell>
+                      <TableCell className="text-purple-600">
+                        {showValuePerUnit ? (
+                          `R$ ${compra.valorPorUnidade.toFixed(2)}/${insumoInfo?.unidade}`
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>{compra.fornecedor}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
