@@ -22,8 +22,7 @@ interface Galpao {
   nome: string;
   lote: string;
   qtdeAves: number;
-  estoqueAtualOvosBons: number;
-  totalGeralPerdas: number;
+  dataChegadaLote: string;
 }
 
 interface ProducaoOvo {
@@ -65,20 +64,20 @@ const ProducaoOvos = () => {
     setProducoes(newProducoes);
   };
 
-  const updateGalpaoEstoque = (galpaoId: string, ovosBons: number, ovosQuebrados: number) => {
-    const updatedGalpoes = galpoes.map(galpao => {
-      if (galpao.id === galpaoId) {
-        return {
-          ...galpao,
-          estoqueAtualOvosBons: galpao.estoqueAtualOvosBons + ovosBons,
-          totalGeralPerdas: galpao.totalGeralPerdas + ovosQuebrados
-        };
-      }
-      return galpao;
-    });
+  const updateEstoqueCentralOvos = (ovosBons: number) => {
+    const estoqueAtual = localStorage.getItem('estoqueCentralOvos');
+    const estoque = estoqueAtual ? JSON.parse(estoqueAtual) : { quantidade: 0, perdas: 0 };
     
-    localStorage.setItem('galpoes', JSON.stringify(updatedGalpoes));
-    setGalpoes(updatedGalpoes);
+    estoque.quantidade += ovosBons;
+    localStorage.setItem('estoqueCentralOvos', JSON.stringify(estoque));
+  };
+
+  const updateTotalPerdas = (ovosQuebrados: number) => {
+    const estoqueAtual = localStorage.getItem('estoqueCentralOvos');
+    const estoque = estoqueAtual ? JSON.parse(estoqueAtual) : { quantidade: 0, perdas: 0 };
+    
+    estoque.perdas += ovosQuebrados;
+    localStorage.setItem('estoqueCentralOvos', JSON.stringify(estoque));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -106,12 +105,13 @@ const ProducaoOvos = () => {
     const updatedProducoes = [...producoes, newProducao];
     saveProducoes(updatedProducoes);
 
-    // Atualizar estoque do galpão
-    updateGalpaoEstoque(formData.galpaoId, formData.ovosBons, formData.ovosQuebrados);
+    // Atualizar estoque central de ovos
+    updateEstoqueCentralOvos(formData.ovosBons);
+    updateTotalPerdas(formData.ovosQuebrados);
 
     toast({
       title: "Sucesso!",
-      description: `Produção registrada. ${formData.ovosBons} ovos adicionados ao estoque do ${selectedGalpao.nome}.`,
+      description: `Produção registrada. ${formData.ovosBons} ovos adicionados ao estoque central.`,
     });
 
     setFormData({ data: "", galpaoId: "", ovosBons: 0, ovosQuebrados: 0 });
@@ -127,7 +127,7 @@ const ProducaoOvos = () => {
               Produção de Ovos
             </h1>
             <p className="text-gray-600">
-              Registro diário de produção - Entrada no estoque por galpão
+              Registro diário de produção - Entrada no estoque central
             </p>
           </div>
           <Button onClick={() => navigate('/')} variant="outline">

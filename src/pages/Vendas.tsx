@@ -17,21 +17,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-interface Galpao {
-  id: string;
-  nome: string;
-  lote: string;
-  qtdeAves: number;
-  estoqueAtualOvosBons: number;
-  totalGeralPerdas: number;
-}
-
 interface Venda {
   id: string;
   data: string;
   cliente: string;
-  galpaoId: string;
-  galpaoNome: string;
   produto: string;
   qtdeVendida: number;
   valorUnitario: number;
@@ -45,13 +34,12 @@ interface Venda {
 const Vendas = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [galpoes, setGalpoes] = useState<Galpao[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [estoqueAtual, setEstoqueAtual] = useState(0);
   const [formData, setFormData] = useState({
     data: "",
     cliente: "",
-    galpaoId: "",
     produto: "",
     qtdeVendida: 0,
     valorUnitario: 0,
@@ -60,14 +48,16 @@ const Vendas = () => {
   });
 
   useEffect(() => {
-    const savedGalpoes = localStorage.getItem('galpoes');
-    if (savedGalpoes) {
-      setGalpoes(JSON.parse(savedGalpoes));
-    }
-
     const savedVendas = localStorage.getItem('vendas');
     if (savedVendas) {
       setVendas(JSON.parse(savedVendas));
+    }
+
+    // Carregar estoque central de ovos
+    const estoqueCentral = localStorage.getItem('estoqueCentralOvos');
+    if (estoqueCentral) {
+      const estoque = JSON.parse(estoqueCentral);
+      setEstoqueAtual(estoque.quantidade || 0);
     }
   }, []);
 
@@ -76,39 +66,23 @@ const Vendas = () => {
     setVendas(newVendas);
   };
 
-  const updateGalpaoEstoque = (galpaoId: string, qtdeVendida: number) => {
-    const updatedGalpoes = galpoes.map(galpao => {
-      if (galpao.id === galpaoId) {
-        return {
-          ...galpao,
-          estoqueAtualOvosBons: galpao.estoqueAtualOvosBons - qtdeVendida
-        };
-      }
-      return galpao;
-    });
+  const updateEstoqueCentralOvos = (qtdeVendida: number) => {
+    const estoqueAtualData = localStorage.getItem('estoqueCentralOvos');
+    const estoque = estoqueAtualData ? JSON.parse(estoqueAtualData) : { quantidade: 0, perdas: 0 };
     
-    localStorage.setItem('galpoes', JSON.stringify(updatedGalpoes));
-    setGalpoes(updatedGalpoes);
+    estoque.quantidade -= qtdeVendida;
+    localStorage.setItem('estoqueCentralOvos', JSON.stringify(estoque));
+    setEstoqueAtual(estoque.quantidade);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const selectedGalpao = galpoes.find(g => g.id === formData.galpaoId);
-    if (!selectedGalpao) {
-      toast({
-        title: "Erro",
-        description: "Selecione um galpão válido.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     // Validação de estoque
-    if (formData.qtdeVendida > selectedGalpao.estoqueAtualOvosBons) {
+    if (formData.qtdeVendida > estoqueAtual) {
       toast({
         title: "Estoque insuficiente!",
-        description: `O galpão ${selectedGalpao.nome} possui apenas ${selectedGalpao.estoqueAtualOvosBons} ovos em estoque.`,
+        description: `Estoque atual: ${estoqueAtual} ovos. Quantidade solicitada: ${formData.qtdeVendida} ovos.`,
         variant: "destructive"
       });
       return;
@@ -139,8 +113,6 @@ const Vendas = () => {
       id: Date.now().toString(),
       data: formData.data,
       cliente: formData.cliente,
-      galpaoId: formData.galpaoId,
-      galpaoNome: selectedGalpao.nome,
       produto: formData.produto,
       qtdeVendida: formData.qtdeVendida,
       valorUnitario: formData.valorUnitario,
@@ -154,18 +126,17 @@ const Vendas = () => {
     const updatedVendas = [...vendas, newVenda];
     saveVendas(updatedVendas);
 
-    // Atualizar estoque do galpão
-    updateGalpaoEstoque(formData.galpaoId, formData.qtdeVendida);
+    // Atualizar estoque central
+    updateEstoqueCentralOvos(formData.qtdeVendida);
 
     toast({
       title: "Sucesso!",
-      description: `Venda registrada. ${formData.qtdeVendida} ovos deduzidos do estoque do ${selectedGalpao.nome}.`,
+      description: `Venda registrada. ${formData.qtdeVendida} ovos deduzidos do estoque central.`,
     });
 
     setFormData({ 
       data: "", 
       cliente: "", 
-      galpaoId: "", 
       produto: "", 
       qtdeVendida: 0, 
       valorUnitario: 0,
@@ -186,7 +157,7 @@ const Vendas = () => {
               Vendas
             </h1>
             <p className="text-gray-600">
-              Gestão de vendas e saída de estoque por galpão
+              Gestão de vendas e saída do estoque central - Estoque atual: <span className="font-bold text-green-600">{estoqueAtual} ovos</span>
             </p>
           </div>
           <div className="flex gap-2">
@@ -213,7 +184,7 @@ const Vendas = () => {
           <CardContent>
             {showForm && (
               <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg bg-gray-50">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="data">Data</Label>
                     <Input
@@ -233,22 +204,14 @@ const Vendas = () => {
                       required
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="galpao">Galpão (Origem do Estoque)</Label>
-                    <Select value={formData.galpaoId} onValueChange={(value) => setFormData({ ...formData, galpaoId: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o galpão" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {galpoes.map((galpao) => (
-                          <SelectItem key={galpao.id} value={galpao.id}>
-                            {galpao.nome} - Estoque: {galpao.estoqueAtualOvosBons} ovos
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                </div>
+                
+                <div className="p-3 bg-blue-50 rounded">
+                  <div className="text-sm font-medium text-blue-700">
+                    Estoque Disponível: {estoqueAtual} ovos
                   </div>
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <Label htmlFor="produto">Produto</Label>
@@ -341,7 +304,6 @@ const Vendas = () => {
                 <TableRow>
                   <TableHead>Data</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Galpão</TableHead>
                   <TableHead>Produto</TableHead>
                   <TableHead>Qtde</TableHead>
                   <TableHead>Valor Unit.</TableHead>
@@ -355,7 +317,6 @@ const Vendas = () => {
                   <TableRow key={venda.id}>
                     <TableCell>{new Date(venda.data).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell className="font-medium">{venda.cliente}</TableCell>
-                    <TableCell>{venda.galpaoNome}</TableCell>
                     <TableCell>{venda.produto}</TableCell>
                     <TableCell>{venda.qtdeVendida}</TableCell>
                     <TableCell>R$ {venda.valorUnitario.toFixed(2)}</TableCell>

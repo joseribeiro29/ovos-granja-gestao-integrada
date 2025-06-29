@@ -21,8 +21,7 @@ interface Galpao {
   nome: string;
   lote: string;
   qtdeAves: number;
-  estoqueAtualOvosBons: number;
-  totalGeralPerdas: number;
+  dataChegadaLote: string;
 }
 
 const Galpoes = () => {
@@ -33,7 +32,8 @@ const Galpoes = () => {
   const [formData, setFormData] = useState({
     nome: "",
     lote: "",
-    qtdeAves: 0
+    qtdeAves: 0,
+    dataChegadaLote: ""
   });
 
   useEffect(() => {
@@ -48,6 +48,18 @@ const Galpoes = () => {
     setGalpoes(newGalpoes);
   };
 
+  const calcularIdade = (dataChegada: string) => {
+    if (!dataChegada) return { dias: 0, semanas: 0 };
+    
+    const hoje = new Date();
+    const chegada = new Date(dataChegada);
+    const diffTime = hoje.getTime() - chegada.getTime();
+    const dias = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const semanas = Math.floor(dias / 7);
+    
+    return { dias: Math.max(0, dias), semanas: Math.max(0, semanas) };
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -56,8 +68,7 @@ const Galpoes = () => {
       nome: formData.nome,
       lote: formData.lote,
       qtdeAves: formData.qtdeAves,
-      estoqueAtualOvosBons: 0,
-      totalGeralPerdas: 0
+      dataChegadaLote: formData.dataChegadaLote
     };
 
     const updatedGalpoes = [...galpoes, newGalpao];
@@ -68,7 +79,7 @@ const Galpoes = () => {
       description: "Galpão cadastrado com sucesso.",
     });
 
-    setFormData({ nome: "", lote: "", qtdeAves: 0 });
+    setFormData({ nome: "", lote: "", qtdeAves: 0, dataChegadaLote: "" });
     setShowForm(false);
   };
 
@@ -91,7 +102,7 @@ const Galpoes = () => {
               Gestão de Galpões
             </h1>
             <p className="text-gray-600">
-              Controle de galpões e estoque de ovos por galpão
+              Controle de galpões e acompanhamento de lotes
             </p>
           </div>
           <Button onClick={() => navigate('/')} variant="outline">
@@ -101,40 +112,47 @@ const Galpoes = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {galpoes.map((galpao) => (
-            <Card key={galpao.id} className="bg-blue-50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  {galpao.nome}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(galpao.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </CardTitle>
-                <CardDescription>Lote: {galpao.lote}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Qtde de Aves:</span>
-                    <span className="font-medium">{galpao.qtdeAves}</span>
+          {galpoes.map((galpao) => {
+            const idade = calcularIdade(galpao.dataChegadaLote);
+            return (
+              <Card key={galpao.id} className="bg-blue-50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center justify-between">
+                    {galpao.nome}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(galpao.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                  <CardDescription>Lote: {galpao.lote}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Qtde de Aves:</span>
+                      <span className="font-medium">{galpao.qtdeAves}</span>
+                    </div>
+                    {galpao.dataChegadaLote && (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Chegada do Lote:</span>
+                          <span className="font-medium">{new Date(galpao.dataChegadaLote).toLocaleDateString('pt-BR')}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-600">Idade do Lote:</span>
+                          <span className="font-bold text-blue-600">{idade.dias} dias ({idade.semanas} semanas)</span>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-600">Estoque Ovos Bons:</span>
-                    <span className="font-bold text-green-600">{galpao.estoqueAtualOvosBons}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-red-600">Total Perdas:</span>
-                    <span className="font-medium text-red-600">{galpao.totalGeralPerdas}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         <Card>
@@ -150,7 +168,7 @@ const Galpoes = () => {
           <CardContent>
             {showForm && (
               <form onSubmit={handleSubmit} className="space-y-4 mb-6 p-4 border rounded-lg bg-gray-50">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <Label htmlFor="nome">Nome do Galpão</Label>
                     <Input
@@ -179,6 +197,16 @@ const Galpoes = () => {
                       required
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="dataChegadaLote">Data de Chegada do Lote</Label>
+                    <Input
+                      id="dataChegadaLote"
+                      type="date"
+                      value={formData.dataChegadaLote}
+                      onChange={(e) => setFormData({ ...formData, dataChegadaLote: e.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button type="submit">Salvar Galpão</Button>
@@ -195,31 +223,38 @@ const Galpoes = () => {
                   <TableHead>Galpão</TableHead>
                   <TableHead>Lote</TableHead>
                   <TableHead>Qtde Aves</TableHead>
-                  <TableHead>Estoque Ovos</TableHead>
-                  <TableHead>Total Perdas</TableHead>
+                  <TableHead>Data Chegada</TableHead>
+                  <TableHead>Idade (dias/semanas)</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {galpoes.map((galpao) => (
-                  <TableRow key={galpao.id}>
-                    <TableCell className="font-medium">{galpao.nome}</TableCell>
-                    <TableCell>{galpao.lote}</TableCell>
-                    <TableCell>{galpao.qtdeAves}</TableCell>
-                    <TableCell className="text-green-600 font-bold">{galpao.estoqueAtualOvosBons}</TableCell>
-                    <TableCell className="text-red-600">{galpao.totalGeralPerdas}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(galpao.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {galpoes.map((galpao) => {
+                  const idade = calcularIdade(galpao.dataChegadaLote);
+                  return (
+                    <TableRow key={galpao.id}>
+                      <TableCell className="font-medium">{galpao.nome}</TableCell>
+                      <TableCell>{galpao.lote}</TableCell>
+                      <TableCell>{galpao.qtdeAves}</TableCell>
+                      <TableCell>
+                        {galpao.dataChegadaLote ? new Date(galpao.dataChegadaLote).toLocaleDateString('pt-BR') : '-'}
+                      </TableCell>
+                      <TableCell className="text-blue-600 font-medium">
+                        {idade.dias}d / {idade.semanas}s
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(galpao.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
             {galpoes.length === 0 && (
