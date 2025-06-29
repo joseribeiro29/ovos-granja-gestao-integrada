@@ -36,6 +36,10 @@ interface Venda {
   qtdeVendida: number;
   valorUnitario: number;
   valorTotal: number;
+  formaPagamento: string;
+  dataVencimento?: string;
+  statusPagamento: string;
+  dataPagamento?: string;
 }
 
 const Vendas = () => {
@@ -50,7 +54,9 @@ const Vendas = () => {
     galpaoId: "",
     produto: "",
     qtdeVendida: 0,
-    valorUnitario: 0
+    valorUnitario: 0,
+    formaPagamento: "",
+    dataVencimento: ""
   });
 
   useEffect(() => {
@@ -108,7 +114,26 @@ const Vendas = () => {
       return;
     }
 
+    // Validação da data de vencimento para pagamentos a prazo
+    if (formData.formaPagamento === "A Prazo" && !formData.dataVencimento) {
+      toast({
+        title: "Erro",
+        description: "Data de vencimento é obrigatória para vendas a prazo.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const valorTotal = formData.qtdeVendida * formData.valorUnitario;
+
+    // Definir status do pagamento baseado na forma de pagamento
+    let statusPagamento = "Pago";
+    let dataPagamento = new Date().toISOString().split('T')[0];
+    
+    if (formData.formaPagamento === "A Prazo") {
+      statusPagamento = "Pendente";
+      dataPagamento = undefined;
+    }
 
     const newVenda: Venda = {
       id: Date.now().toString(),
@@ -119,7 +144,11 @@ const Vendas = () => {
       produto: formData.produto,
       qtdeVendida: formData.qtdeVendida,
       valorUnitario: formData.valorUnitario,
-      valorTotal: valorTotal
+      valorTotal: valorTotal,
+      formaPagamento: formData.formaPagamento,
+      dataVencimento: formData.formaPagamento === "A Prazo" ? formData.dataVencimento : undefined,
+      statusPagamento: statusPagamento,
+      dataPagamento: dataPagamento
     };
 
     const updatedVendas = [...vendas, newVenda];
@@ -133,7 +162,16 @@ const Vendas = () => {
       description: `Venda registrada. ${formData.qtdeVendida} ovos deduzidos do estoque do ${selectedGalpao.nome}.`,
     });
 
-    setFormData({ data: "", cliente: "", galpaoId: "", produto: "", qtdeVendida: 0, valorUnitario: 0 });
+    setFormData({ 
+      data: "", 
+      cliente: "", 
+      galpaoId: "", 
+      produto: "", 
+      qtdeVendida: 0, 
+      valorUnitario: 0,
+      formaPagamento: "",
+      dataVencimento: ""
+    });
     setShowForm(false);
   };
 
@@ -151,10 +189,15 @@ const Vendas = () => {
               Gestão de vendas e saída de estoque por galpão
             </p>
           </div>
-          <Button onClick={() => navigate('/')} variant="outline">
-            <ArrowDownUp className="mr-2 h-4 w-4" />
-            Voltar ao Dashboard
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate('/contas-receber')} variant="outline">
+              Contas a Receber
+            </Button>
+            <Button onClick={() => navigate('/')} variant="outline">
+              <ArrowDownUp className="mr-2 h-4 w-4" />
+              Voltar ao Dashboard
+            </Button>
+          </div>
         </div>
 
         <Card className="mb-6">
@@ -249,6 +292,34 @@ const Vendas = () => {
                     </div>
                   </div>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="formaPagamento">Forma de Pagamento</Label>
+                    <Select value={formData.formaPagamento} onValueChange={(value) => setFormData({ ...formData, formaPagamento: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a forma de pagamento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="À Vista (Dinheiro/Pix)">À Vista (Dinheiro/Pix)</SelectItem>
+                        <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                        <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                        <SelectItem value="A Prazo">A Prazo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {formData.formaPagamento === "A Prazo" && (
+                    <div>
+                      <Label htmlFor="dataVencimento">Data de Vencimento</Label>
+                      <Input
+                        id="dataVencimento"
+                        type="date"
+                        value={formData.dataVencimento}
+                        onChange={(e) => setFormData({ ...formData, dataVencimento: e.target.value })}
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Button type="submit">Registrar Venda</Button>
                   <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
@@ -275,6 +346,8 @@ const Vendas = () => {
                   <TableHead>Qtde</TableHead>
                   <TableHead>Valor Unit.</TableHead>
                   <TableHead>Valor Total</TableHead>
+                  <TableHead>Forma Pagamento</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -287,6 +360,16 @@ const Vendas = () => {
                     <TableCell>{venda.qtdeVendida}</TableCell>
                     <TableCell>R$ {venda.valorUnitario.toFixed(2)}</TableCell>
                     <TableCell className="font-bold text-green-600">R$ {venda.valorTotal.toFixed(2)}</TableCell>
+                    <TableCell>{venda.formaPagamento}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        venda.statusPagamento === 'Pago' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {venda.statusPagamento}
+                      </span>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

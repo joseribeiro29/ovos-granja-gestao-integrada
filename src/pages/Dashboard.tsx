@@ -52,11 +52,18 @@ const Dashboard = () => {
       color: "bg-purple-50 hover:bg-purple-100"
     },
     {
-      title: "Despesas",
-      description: "Controle de despesas operacionais",
+      title: "Eventos do Lote",
+      description: "Mortalidade e manejos do lote",
       icon: <FileMinusIcon className="h-8 w-8" />,
       path: "/despesas",
       color: "bg-red-50 hover:bg-red-100"
+    },
+    {
+      title: "Contas a Receber",
+      description: "Gestão financeira de clientes",
+      icon: <FileMinusIcon className="h-8 w-8" />,
+      path: "/contas-receber",
+      color: "bg-pink-50 hover:bg-pink-100"
     },
     {
       title: "Relatórios",
