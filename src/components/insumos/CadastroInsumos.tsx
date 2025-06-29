@@ -1,12 +1,12 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Insumo {
@@ -19,6 +19,7 @@ interface Insumo {
 
 const CadastroInsumos = () => {
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [editandoInsumo, setEditandoInsumo] = useState<Insumo | null>(null);
   const [novoInsumo, setNovoInsumo] = useState({
     nome: '',
     unidade: '',
@@ -26,6 +27,18 @@ const CadastroInsumos = () => {
     estoqueMinimo: ''
   });
   const { toast } = useToast();
+
+  useEffect(() => {
+    const savedInsumos = localStorage.getItem('insumos');
+    if (savedInsumos) {
+      setInsumos(JSON.parse(savedInsumos));
+    }
+  }, []);
+
+  const saveInsumos = (novosInsumos: Insumo[]) => {
+    localStorage.setItem('insumos', JSON.stringify(novosInsumos));
+    setInsumos(novosInsumos);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,20 +53,43 @@ const CadastroInsumos = () => {
     }
 
     const insumo: Insumo = {
-      id: Date.now().toString(),
+      id: editandoInsumo?.id || Date.now().toString(),
       nome: novoInsumo.nome,
       unidade: novoInsumo.unidade,
       fatorConversaoKg: parseFloat(novoInsumo.fatorConversaoKg),
       estoqueMinimo: parseFloat(novoInsumo.estoqueMinimo) || 0
     };
 
-    setInsumos([...insumos, insumo]);
+    let updatedInsumos;
+    if (editandoInsumo) {
+      updatedInsumos = insumos.map(i => i.id === editandoInsumo.id ? insumo : i);
+    } else {
+      updatedInsumos = [...insumos, insumo];
+    }
+
+    saveInsumos(updatedInsumos);
     setNovoInsumo({ nome: '', unidade: '', fatorConversaoKg: '', estoqueMinimo: '' });
+    setEditandoInsumo(null);
     
     toast({
       title: "Sucesso",
-      description: "Insumo cadastrado com sucesso!"
+      description: editandoInsumo ? "Insumo atualizado com sucesso!" : "Insumo cadastrado com sucesso!"
     });
+  };
+
+  const editarInsumo = (insumo: Insumo) => {
+    setEditandoInsumo(insumo);
+    setNovoInsumo({
+      nome: insumo.nome,
+      unidade: insumo.unidade,
+      fatorConversaoKg: insumo.fatorConversaoKg.toString(),
+      estoqueMinimo: insumo.estoqueMinimo.toString()
+    });
+  };
+
+  const cancelarEdicao = () => {
+    setEditandoInsumo(null);
+    setNovoInsumo({ nome: '', unidade: '', fatorConversaoKg: '', estoqueMinimo: '' });
   };
 
   return (
@@ -62,7 +98,7 @@ const CadastroInsumos = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <PlusIcon className="h-5 w-5" />
-            Cadastrar Novo Insumo
+            {editandoInsumo ? 'Editar Insumo' : 'Cadastrar Novo Insumo'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -125,11 +161,16 @@ const CadastroInsumos = () => {
               />
             </div>
 
-            <div className="md:col-span-2 lg:col-span-4">
+            <div className="md:col-span-2 lg:col-span-4 flex gap-2">
               <Button type="submit" className="w-full md:w-auto">
                 <PlusIcon className="mr-2 h-4 w-4" />
-                Cadastrar Insumo
+                {editandoInsumo ? 'Atualizar' : 'Cadastrar'} Insumo
               </Button>
+              {editandoInsumo && (
+                <Button type="button" variant="outline" onClick={cancelarEdicao}>
+                  Cancelar
+                </Button>
+              )}
             </div>
           </form>
         </CardContent>
@@ -152,6 +193,7 @@ const CadastroInsumos = () => {
                   <TableHead>Unidade de Compra</TableHead>
                   <TableHead>Fator Conversão (KG)</TableHead>
                   <TableHead>Estoque Mínimo (KG)</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -161,6 +203,15 @@ const CadastroInsumos = () => {
                     <TableCell>{insumo.unidade}</TableCell>
                     <TableCell>{insumo.fatorConversaoKg} KG/{insumo.unidade}</TableCell>
                     <TableCell>{insumo.estoqueMinimo} KG</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => editarInsumo(insumo)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

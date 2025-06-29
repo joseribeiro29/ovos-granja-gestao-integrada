@@ -40,6 +40,7 @@ interface Formula {
   pesoTotalKg: number;
   custoTotalFormula: number;
   custoPorKg: number;
+  custoTotalPor1000kg: number;
 }
 
 const CadastroFormulas = () => {
@@ -64,27 +65,28 @@ const CadastroFormulas = () => {
       setFormulas(JSON.parse(savedFormulas));
     }
 
+    loadInsumos();
+  }, []);
+
+  const loadInsumos = () => {
     const savedInsumos = localStorage.getItem('insumos');
     if (savedInsumos) {
       const insumosData = JSON.parse(savedInsumos);
-      setInsumos(insumosData);
-    }
-
-    // Carregar preços dos insumos do estoque
-    const savedEstoque = localStorage.getItem('estoqueInsumos');
-    if (savedEstoque) {
-      const estoqueData = JSON.parse(savedEstoque);
-      const savedInsumos = localStorage.getItem('insumos');
-      if (savedInsumos) {
-        const insumosData = JSON.parse(savedInsumos);
+      
+      // Carregar preços dos insumos do estoque
+      const savedEstoque = localStorage.getItem('estoqueInsumos');
+      if (savedEstoque) {
+        const estoqueData = JSON.parse(savedEstoque);
         const insumosComPreco = insumosData.map((insumo: Insumo) => ({
           ...insumo,
           precoPorKg: estoqueData[insumo.nome]?.valorPorKg || 0
         }));
         setInsumos(insumosComPreco);
+      } else {
+        setInsumos(insumosData);
       }
     }
-  }, []);
+  };
 
   const saveFormulas = (newFormulas: Formula[]) => {
     localStorage.setItem('formulasRacao', JSON.stringify(newFormulas));
@@ -113,10 +115,10 @@ const CadastroFormulas = () => {
     }
 
     const insumoSelecionado = insumos.find(i => i.id === novoIngrediente.insumoId);
-    if (!insumoSelecionado || !insumoSelecionado.precoPorKg) {
+    if (!insumoSelecionado) {
       toast({
         title: "Erro",
-        description: "Insumo não encontrado ou sem preço definido.",
+        description: "Insumo não encontrado.",
         variant: "destructive"
       });
       return;
@@ -133,14 +135,15 @@ const CadastroFormulas = () => {
       return;
     }
 
-    const custoIngrediente = novoIngrediente.quantidadeKg * insumoSelecionado.precoPorKg;
+    const precoPorKg = insumoSelecionado.precoPorKg || 0;
+    const custoIngrediente = novoIngrediente.quantidadeKg * precoPorKg;
 
     const novoIngredienteCompleto: IngredienteFormula = {
       id: Date.now().toString(),
       insumoId: novoIngrediente.insumoId,
       insumoNome: insumoSelecionado.nome,
       quantidadeKg: novoIngrediente.quantidadeKg,
-      precoPorKg: insumoSelecionado.precoPorKg,
+      precoPorKg: precoPorKg,
       custoIngrediente: custoIngrediente
     };
 
@@ -185,7 +188,8 @@ const CadastroFormulas = () => {
       ingredientes: [...ingredientes],
       pesoTotalKg: pesoTotal,
       custoTotalFormula: custoTotal,
-      custoPorKg: custoPorKg
+      custoPorKg: custoPorKg,
+      custoTotalPor1000kg: custoPorKg * 1000
     };
 
     let updatedFormulas;
@@ -328,7 +332,7 @@ const CadastroFormulas = () => {
 
             <Card className="bg-gray-50">
               <CardHeader>
-                <CardTitle className="text-lg">Construtor de Receita (por KG)</CardTitle>
+                <CardTitle className="text-lg">Construtor de Receita</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -339,9 +343,9 @@ const CadastroFormulas = () => {
                         <SelectValue placeholder="Selecione o insumo" />
                       </SelectTrigger>
                       <SelectContent>
-                        {insumos.filter(insumo => insumo.precoPorKg && insumo.precoPorKg > 0).map((insumo) => (
+                        {insumos.map((insumo) => (
                           <SelectItem key={insumo.id} value={insumo.id}>
-                            {insumo.nome} - R$ {insumo.precoPorKg?.toFixed(2)}/kg
+                            {insumo.nome} - R$ {(insumo.precoPorKg || 0).toFixed(2)}/kg
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -12,7 +11,8 @@ import {
   CreditCard, 
   BarChart3,
   FileText,
-  Settings
+  Settings,
+  Calculator
 } from "lucide-react";
 
 const Dashboard = () => {
@@ -88,6 +88,13 @@ const Dashboard = () => {
       icon: FileText,
       path: "/relatorio-galpao",
       color: "bg-pink-50 hover:bg-pink-100 border-pink-200"
+    },
+    {
+      title: "Relatório Financeiro",
+      description: "Fluxo de caixa e transações",
+      icon: Calculator,
+      path: "/relatorio-financeiro",
+      color: "bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
     }
   ];
 
