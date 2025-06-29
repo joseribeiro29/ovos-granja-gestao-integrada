@@ -27,9 +27,9 @@ interface IngredienteFormula {
   id: string;
   insumoId: string;
   insumoNome: string;
-  percentualMistura: number;
+  quantidadeKg: number;
   precoPorKg: number;
-  custoNaFormula: number;
+  custoIngrediente: number;
 }
 
 interface Formula {
@@ -37,7 +37,8 @@ interface Formula {
   nome: string;
   faseAve: string;
   ingredientes: IngredienteFormula[];
-  custoTotalPor1000kg: number;
+  pesoTotalKg: number;
+  custoTotalFormula: number;
   custoPorKg: number;
 }
 
@@ -54,7 +55,7 @@ const CadastroFormulas = () => {
   const [ingredientes, setIngredientes] = useState<IngredienteFormula[]>([]);
   const [novoIngrediente, setNovoIngrediente] = useState({
     insumoId: "",
-    percentualMistura: 0
+    quantidadeKg: 0
   });
 
   useEffect(() => {
@@ -65,7 +66,23 @@ const CadastroFormulas = () => {
 
     const savedInsumos = localStorage.getItem('insumos');
     if (savedInsumos) {
-      setInsumos(JSON.parse(savedInsumos));
+      const insumosData = JSON.parse(savedInsumos);
+      setInsumos(insumosData);
+    }
+
+    // Carregar preços dos insumos do estoque
+    const savedEstoque = localStorage.getItem('estoqueInsumos');
+    if (savedEstoque) {
+      const estoqueData = JSON.parse(savedEstoque);
+      const savedInsumos = localStorage.getItem('insumos');
+      if (savedInsumos) {
+        const insumosData = JSON.parse(savedInsumos);
+        const insumosComPreco = insumosData.map((insumo: Insumo) => ({
+          ...insumo,
+          precoPorKg: estoqueData[insumo.nome]?.valorPorKg || 0
+        }));
+        setInsumos(insumosComPreco);
+      }
     }
   }, []);
 
@@ -75,28 +92,21 @@ const CadastroFormulas = () => {
   };
 
   const calcularCustos = () => {
-    const totalPercentual = ingredientes.reduce((acc, ing) => acc + ing.percentualMistura, 0);
+    const pesoTotal = ingredientes.reduce((acc, ing) => acc + ing.quantidadeKg, 0);
+    const custoTotal = ingredientes.reduce((acc, ing) => acc + ing.custoIngrediente, 0);
     
-    if (totalPercentual !== 100) {
-      return { custoTotal: 0, custoPorKg: 0 };
-    }
-
-    const custoTotal = ingredientes.reduce((acc, ing) => {
-      const custoIngrediente = (ing.percentualMistura / 100) * 1000 * ing.precoPorKg;
-      return acc + custoIngrediente;
-    }, 0);
-
     return {
+      pesoTotal: pesoTotal,
       custoTotal: custoTotal,
-      custoPorKg: custoTotal / 1000
+      custoPorKg: pesoTotal > 0 ? custoTotal / pesoTotal : 0
     };
   };
 
   const adicionarIngrediente = () => {
-    if (!novoIngrediente.insumoId || novoIngrediente.percentualMistura <= 0) {
+    if (!novoIngrediente.insumoId || novoIngrediente.quantidadeKg <= 0) {
       toast({
         title: "Erro",
-        description: "Selecione um insumo e informe o percentual.",
+        description: "Selecione um insumo e informe a quantidade em KG.",
         variant: "destructive"
       });
       return;
@@ -112,19 +122,35 @@ const CadastroFormulas = () => {
       return;
     }
 
-    const custoNaFormula = (novoIngrediente.percentualMistura / 100) * 1000 * insumoSelecionado.precoPorKg;
+    // Verificar se o ingrediente já foi adicionado
+    const ingredienteExistente = ingredientes.find(ing => ing.insumoId === novoIngrediente.insumoId);
+    if (ingredienteExistente) {
+      toast({
+        title: "Erro",
+        description: "Este ingrediente já foi adicionado à fórmula.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const custoIngrediente = novoIngrediente.quantidadeKg * insumoSelecionado.precoPorKg;
 
     const novoIngredienteCompleto: IngredienteFormula = {
       id: Date.now().toString(),
       insumoId: novoIngrediente.insumoId,
       insumoNome: insumoSelecionado.nome,
-      percentualMistura: novoIngrediente.percentualMistura,
+      quantidadeKg: novoIngrediente.quantidadeKg,
       precoPorKg: insumoSelecionado.precoPorKg,
-      custoNaFormula: custoNaFormula
+      custoIngrediente: custoIngrediente
     };
 
     setIngredientes([...ingredientes, novoIngredienteCompleto]);
-    setNovoIngrediente({ insumoId: "", percentualMistura: 0 });
+    setNovoIngrediente({ insumoId: "", quantidadeKg: 0 });
+    
+    toast({
+      title: "Sucesso!",
+      description: "Ingrediente adicionado à fórmula.",
+    });
   };
 
   const removerIngrediente = (id: string) => {
@@ -150,24 +176,15 @@ const CadastroFormulas = () => {
       return;
     }
 
-    const totalPercentual = ingredientes.reduce((acc, ing) => acc + ing.percentualMistura, 0);
-    if (totalPercentual !== 100) {
-      toast({
-        title: "Erro",
-        description: `O total dos percentuais deve ser 100%. Atual: ${totalPercentual}%`,
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const { custoTotal, custoPorKg } = calcularCustos();
+    const { pesoTotal, custoTotal, custoPorKg } = calcularCustos();
 
     const novaFormula: Formula = {
       id: formulaEditando?.id || Date.now().toString(),
       nome: dadosFormula.nome,
       faseAve: dadosFormula.faseAve,
       ingredientes: [...ingredientes],
-      custoTotalPor1000kg: custoTotal,
+      pesoTotalKg: pesoTotal,
+      custoTotalFormula: custoTotal,
       custoPorKg: custoPorKg
     };
 
@@ -198,16 +215,25 @@ const CadastroFormulas = () => {
     setShowFormFormula(true);
   };
 
+  const excluirFormula = (id: string) => {
+    const updatedFormulas = formulas.filter(f => f.id !== id);
+    saveFormulas(updatedFormulas);
+    
+    toast({
+      title: "Sucesso!",
+      description: "Fórmula excluída com sucesso.",
+    });
+  };
+
   const resetForm = () => {
     setDadosFormula({ nome: "", faseAve: "" });
     setIngredientes([]);
-    setNovoIngrediente({ insumoId: "", percentualMistura: 0 });
+    setNovoIngrediente({ insumoId: "", quantidadeKg: 0 });
     setFormulaEditando(null);
     setShowFormFormula(false);
   };
 
-  const { custoTotal, custoPorKg } = calcularCustos();
-  const totalPercentual = ingredientes.reduce((acc, ing) => acc + ing.percentualMistura, 0);
+  const { pesoTotal, custoTotal, custoPorKg } = calcularCustos();
 
   return (
     <div className="space-y-6">
@@ -228,24 +254,35 @@ const CadastroFormulas = () => {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center justify-between">
                     {formula.nome}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => editarFormula(formula)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => editarFormula(formula)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => excluirFormula(formula.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2 text-sm">
                     <div><strong>Fase:</strong> {formula.faseAve}</div>
                     <div><strong>Ingredientes:</strong> {formula.ingredientes.length}</div>
+                    <div><strong>Peso Total:</strong> {formula.pesoTotalKg.toFixed(2)} kg</div>
                     <div className="text-green-600 font-bold">
                       Custo/Kg: R$ {formula.custoPorKg.toFixed(2)}
                     </div>
                     <div className="text-sm text-gray-600">
-                      Custo 1000kg: R$ {formula.custoTotalPor1000kg.toFixed(2)}
+                      Custo Total: R$ {formula.custoTotalFormula.toFixed(2)}
                     </div>
                   </div>
                 </CardContent>
@@ -291,7 +328,7 @@ const CadastroFormulas = () => {
 
             <Card className="bg-gray-50">
               <CardHeader>
-                <CardTitle className="text-lg">Construtor de Receita</CardTitle>
+                <CardTitle className="text-lg">Construtor de Receita (por KG)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -302,7 +339,7 @@ const CadastroFormulas = () => {
                         <SelectValue placeholder="Selecione o insumo" />
                       </SelectTrigger>
                       <SelectContent>
-                        {insumos.filter(insumo => insumo.precoPorKg).map((insumo) => (
+                        {insumos.filter(insumo => insumo.precoPorKg && insumo.precoPorKg > 0).map((insumo) => (
                           <SelectItem key={insumo.id} value={insumo.id}>
                             {insumo.nome} - R$ {insumo.precoPorKg?.toFixed(2)}/kg
                           </SelectItem>
@@ -311,12 +348,13 @@ const CadastroFormulas = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label>% na Mistura</Label>
+                    <Label>Quantidade (KG)</Label>
                     <Input
                       type="number"
                       step="0.1"
-                      value={novoIngrediente.percentualMistura}
-                      onChange={(e) => setNovoIngrediente({ ...novoIngrediente, percentualMistura: Number(e.target.value) })}
+                      value={novoIngrediente.quantidadeKg}
+                      onChange={(e) => setNovoIngrediente({ ...novoIngrediente, quantidadeKg: Number(e.target.value) })}
+                      placeholder="0.0"
                     />
                   </div>
                   <div className="flex items-end">
@@ -331,9 +369,9 @@ const CadastroFormulas = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Ingrediente</TableHead>
-                        <TableHead>% Mistura</TableHead>
+                        <TableHead>Qtde (KG)</TableHead>
                         <TableHead>Preço/Kg</TableHead>
-                        <TableHead>Custo na Fórmula</TableHead>
+                        <TableHead>Custo</TableHead>
                         <TableHead>Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -341,9 +379,9 @@ const CadastroFormulas = () => {
                       {ingredientes.map((ingrediente) => (
                         <TableRow key={ingrediente.id}>
                           <TableCell>{ingrediente.insumoNome}</TableCell>
-                          <TableCell>{ingrediente.percentualMistura}%</TableCell>
+                          <TableCell>{ingrediente.quantidadeKg.toFixed(2)} kg</TableCell>
                           <TableCell>R$ {ingrediente.precoPorKg.toFixed(2)}</TableCell>
-                          <TableCell>R$ {ingrediente.custoNaFormula.toFixed(2)}</TableCell>
+                          <TableCell>R$ {ingrediente.custoIngrediente.toFixed(2)}</TableCell>
                           <TableCell>
                             <Button
                               variant="ghost"
@@ -363,20 +401,20 @@ const CadastroFormulas = () => {
                 <div className="bg-white p-4 rounded border">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                     <div>
-                      <div className="text-sm text-gray-600">Total Percentual</div>
-                      <div className={`text-lg font-bold ${totalPercentual === 100 ? 'text-green-600' : 'text-red-600'}`}>
-                        {totalPercentual}%
+                      <div className="text-sm text-gray-600">Peso Total</div>
+                      <div className="text-lg font-bold text-blue-600">
+                        {pesoTotal.toFixed(2)} kg
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-gray-600">Custo Total (1000kg)</div>
-                      <div className="text-lg font-bold text-blue-600">
+                      <div className="text-sm text-gray-600">Custo Total</div>
+                      <div className="text-lg font-bold text-green-600">
                         R$ {custoTotal.toFixed(2)}
                       </div>
                     </div>
                     <div>
                       <div className="text-sm text-gray-600">Custo por Kg</div>
-                      <div className="text-lg font-bold text-green-600">
+                      <div className="text-lg font-bold text-orange-600">
                         R$ {custoPorKg.toFixed(2)}
                       </div>
                     </div>

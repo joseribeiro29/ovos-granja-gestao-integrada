@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,8 @@ interface Compra {
   valorPorKg: number;
 }
 
-interface InsumoData {
+interface Insumo {
+  id: string;
   nome: string;
   unidade: string;
   fatorConversaoKg: number;
@@ -29,6 +30,7 @@ interface InsumoData {
 
 const ComprasInsumos = () => {
   const [compras, setCompras] = useState<Compra[]>([]);
+  const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [novaCompra, setNovaCompra] = useState({
     data: '',
     insumo: '',
@@ -38,21 +40,20 @@ const ComprasInsumos = () => {
   });
   const { toast } = useToast();
 
-  // Mock data - em um sistema real, isso viria do módulo de cadastro
-  const insumosDisponiveis: InsumoData[] = [
-    { nome: 'Milho', unidade: 'Saco', fatorConversaoKg: 50 },
-    { nome: 'Soja', unidade: 'Saco', fatorConversaoKg: 50 },
-    { nome: 'Farelo de Trigo', unidade: 'Saco', fatorConversaoKg: 40 },
-    { nome: 'Calcário', unidade: 'KG', fatorConversaoKg: 1 },
-    { nome: 'Sal', unidade: 'Saco', fatorConversaoKg: 25 },
-    { nome: 'Premix Vitamínico', unidade: 'Saco', fatorConversaoKg: 20 }
-  ];
+  useEffect(() => {
+    // Carregar insumos cadastrados dinamicamente
+    const savedInsumos = localStorage.getItem('insumos');
+    if (savedInsumos) {
+      setInsumos(JSON.parse(savedInsumos));
+    }
 
-  const insumoSelecionado = insumosDisponiveis.find(i => i.nome === novaCompra.insumo);
+    const savedCompras = localStorage.getItem('compras');
+    if (savedCompras) {
+      setCompras(JSON.parse(savedCompras));
+    }
+  }, []);
 
-  // Verifica se deve exibir o valor por unidade (apenas para unidades contáveis)
-  const shouldShowValuePerUnit = insumoSelecionado && 
-    ['Saco', 'Caixa', 'Fardo', 'Unidade'].includes(insumoSelecionado.unidade);
+  const insumoSelecionado = insumos.find(i => i.nome === novaCompra.insumo);
 
   // Calcula valores automaticamente
   const quantidade = parseFloat(novaCompra.quantidade) || 0;
@@ -73,7 +74,7 @@ const ComprasInsumos = () => {
       return;
     }
 
-    const insumoData = insumosDisponiveis.find(i => i.nome === novaCompra.insumo);
+    const insumoData = insumos.find(i => i.nome === novaCompra.insumo);
     if (!insumoData) {
       toast({
         title: "Erro",
@@ -95,7 +96,23 @@ const ComprasInsumos = () => {
       valorPorKg: valorPorKg
     };
 
-    setCompras([...compras, compra]);
+    const updatedCompras = [...compras, compra];
+    setCompras(updatedCompras);
+    localStorage.setItem('compras', JSON.stringify(updatedCompras));
+
+    // Atualizar estoque de insumos
+    const savedEstoque = localStorage.getItem('estoqueInsumos');
+    const estoque = savedEstoque ? JSON.parse(savedEstoque) : {};
+    
+    if (!estoque[novaCompra.insumo]) {
+      estoque[novaCompra.insumo] = { quantidade: 0, valorPorKg: 0 };
+    }
+    
+    estoque[novaCompra.insumo].quantidade += qtdeTotalKg;
+    estoque[novaCompra.insumo].valorPorKg = valorPorKg;
+    
+    localStorage.setItem('estoqueInsumos', JSON.stringify(estoque));
+
     setNovaCompra({ data: '', insumo: '', quantidade: '', valorPorUnidade: '', fornecedor: '' });
     
     toast({
@@ -136,11 +153,15 @@ const ComprasInsumos = () => {
                   <SelectValue placeholder="Selecione o insumo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {insumosDisponiveis.map((insumo) => (
-                    <SelectItem key={insumo.nome} value={insumo.nome}>
-                      {insumo.nome} ({insumo.unidade})
-                    </SelectItem>
-                  ))}
+                  {insumos.length === 0 ? (
+                    <SelectItem value="vazio" disabled>Nenhum insumo cadastrado</SelectItem>
+                  ) : (
+                    insumos.map((insumo) => (
+                      <SelectItem key={insumo.id} value={insumo.nome}>
+                        {insumo.nome} ({insumo.unidade})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -243,7 +264,7 @@ const ComprasInsumos = () => {
               </TableHeader>
               <TableBody>
                 {compras.map((compra) => {
-                  const insumoInfo = insumosDisponiveis.find(i => i.nome === compra.insumo);
+                  const insumoInfo = insumos.find(i => i.nome === compra.insumo);
                   
                   return (
                     <TableRow key={compra.id}>

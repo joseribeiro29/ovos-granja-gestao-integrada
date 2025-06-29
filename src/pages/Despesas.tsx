@@ -5,10 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
-import { ArrowDownUp, PlusIcon, Trash2 } from "lucide-react";
+import { ArrowDownUp, PlusIcon, Trash2, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -18,172 +18,181 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-interface Galpao {
+interface CategoriaDespesa {
   id: string;
   nome: string;
-  lote: string;
-  qtdeAves: number;
-  estoqueAtualOvosBons: number;
-  totalGeralPerdas: number;
+  descricao?: string;
 }
 
-interface EventoMortalidade {
+interface Despesa {
   id: string;
   data: string;
-  galpaoId: string;
-  galpaoNome: string;
-  qtdeAves: number;
-  causa: string;
-}
-
-interface EventoManejo {
-  id: string;
-  data: string;
-  galpaoId: string;
-  galpaoNome: string;
-  tipoManejo: string;
   descricao: string;
-  custoManejo: number;
+  categoria: string;
+  valor: number;
 }
 
 const Despesas = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [galpoes, setGalpoes] = useState<Galpao[]>([]);
-  const [eventosMortalidade, setEventosMortalidade] = useState<EventoMortalidade[]>([]);
-  const [eventosManejo, setEventosManejo] = useState<EventoManejo[]>([]);
-  const [showMortalidadeForm, setShowMortalidadeForm] = useState(false);
-  const [showManejoForm, setShowManejoForm] = useState(false);
+  const [categorias, setCategorias] = useState<CategoriaDespesa[]>([]);
+  const [despesas, setDespesas] = useState<Despesa[]>([]);
+  const [showCategoriaForm, setShowCategoriaForm] = useState(false);
+  const [showDespesaForm, setShowDespesaForm] = useState(false);
+  const [editandoCategoria, setEditandoCategoria] = useState<CategoriaDespesa | null>(null);
   
-  const [mortalidadeForm, setMortalidadeForm] = useState({
-    data: "",
-    galpaoId: "",
-    qtdeAves: 0,
-    causa: ""
+  const [categoriaForm, setCategoriaForm] = useState({
+    nome: "",
+    descricao: ""
   });
 
-  const [manejoForm, setManejoForm] = useState({
+  const [despesaForm, setDespesaForm] = useState({
     data: "",
-    galpaoId: "",
-    tipoManejo: "",
     descricao: "",
-    custoManejo: 0
+    categoria: "",
+    valor: 0
   });
 
   useEffect(() => {
-    const savedGalpoes = localStorage.getItem('galpoes');
-    if (savedGalpoes) {
-      setGalpoes(JSON.parse(savedGalpoes));
+    const savedCategorias = localStorage.getItem('categoriasDespesas');
+    if (savedCategorias) {
+      setCategorias(JSON.parse(savedCategorias));
+    } else {
+      // Categorias padrão
+      const categoriasDefault = [
+        { id: "1", nome: "Salários", descricao: "Pagamento de funcionários" },
+        { id: "2", nome: "Energia Elétrica", descricao: "Conta de luz" },
+        { id: "3", nome: "Combustível", descricao: "Gasolina, diesel, etc." },
+        { id: "4", nome: "Manutenção", descricao: "Reparos e manutenções" },
+        { id: "5", nome: "Impostos", descricao: "Taxas e impostos" }
+      ];
+      setCategorias(categoriasDefault);
+      localStorage.setItem('categoriasDespesas', JSON.stringify(categoriasDefault));
     }
 
-    const savedMortalidade = localStorage.getItem('eventosMortalidade');
-    if (savedMortalidade) {
-      setEventosMortalidade(JSON.parse(savedMortalidade));
-    }
-
-    const savedManejo = localStorage.getItem('eventosManejo');
-    if (savedManejo) {
-      setEventosManejo(JSON.parse(savedManejo));
+    const savedDespesas = localStorage.getItem('despesas');
+    if (savedDespesas) {
+      setDespesas(JSON.parse(savedDespesas));
     }
   }, []);
 
-  const saveGalpoes = (newGalpoes: Galpao[]) => {
-    localStorage.setItem('galpoes', JSON.stringify(newGalpoes));
-    setGalpoes(newGalpoes);
+  const saveCategorias = (newCategorias: CategoriaDespesa[]) => {
+    localStorage.setItem('categoriasDespesas', JSON.stringify(newCategorias));
+    setCategorias(newCategorias);
   };
 
-  const handleMortalidadeSubmit = (e: React.FormEvent) => {
+  const saveDespesas = (newDespesas: Despesa[]) => {
+    localStorage.setItem('despesas', JSON.stringify(newDespesas));
+    setDespesas(newDespesas);
+  };
+
+  const handleCategoriaSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const selectedGalpao = galpoes.find(g => g.id === mortalidadeForm.galpaoId);
-    if (!selectedGalpao) {
+    if (!categoriaForm.nome) {
       toast({
         title: "Erro",
-        description: "Selecione um galpão válido.",
+        description: "O nome da categoria é obrigatório.",
         variant: "destructive"
       });
       return;
     }
 
-    // Validar se há aves suficientes
-    if (mortalidadeForm.qtdeAves > selectedGalpao.qtdeAves) {
+    if (editandoCategoria) {
+      const updatedCategorias = categorias.map(cat => 
+        cat.id === editandoCategoria.id 
+          ? { ...cat, nome: categoriaForm.nome, descricao: categoriaForm.descricao }
+          : cat
+      );
+      saveCategorias(updatedCategorias);
+      
+      toast({
+        title: "Sucesso!",
+        description: "Categoria atualizada com sucesso.",
+      });
+    } else {
+      const novaCategoria: CategoriaDespesa = {
+        id: Date.now().toString(),
+        nome: categoriaForm.nome,
+        descricao: categoriaForm.descricao
+      };
+
+      const updatedCategorias = [...categorias, novaCategoria];
+      saveCategorias(updatedCategorias);
+
+      toast({
+        title: "Sucesso!",
+        description: "Categoria cadastrada com sucesso.",
+      });
+    }
+
+    setCategoriaForm({ nome: "", descricao: "" });
+    setEditandoCategoria(null);
+    setShowCategoriaForm(false);
+  };
+
+  const handleDespesaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!despesaForm.data || !despesaForm.descricao || !despesaForm.categoria || despesaForm.valor <= 0) {
       toast({
         title: "Erro",
-        description: `O galpão ${selectedGalpao.nome} possui apenas ${selectedGalpao.qtdeAves} aves.`,
+        description: "Preencha todos os campos obrigatórios.",
         variant: "destructive"
       });
       return;
     }
 
-    const newEvento: EventoMortalidade = {
+    const novaDespesa: Despesa = {
       id: Date.now().toString(),
-      data: mortalidadeForm.data,
-      galpaoId: mortalidadeForm.galpaoId,
-      galpaoNome: selectedGalpao.nome,
-      qtdeAves: mortalidadeForm.qtdeAves,
-      causa: mortalidadeForm.causa
+      data: despesaForm.data,
+      descricao: despesaForm.descricao,
+      categoria: despesaForm.categoria,
+      valor: despesaForm.valor
     };
 
-    const updatedEventos = [...eventosMortalidade, newEvento];
-    setEventosMortalidade(updatedEventos);
-    localStorage.setItem('eventosMortalidade', JSON.stringify(updatedEventos));
-
-    // Atualizar quantidade de aves no galpão
-    const updatedGalpoes = galpoes.map(galpao => {
-      if (galpao.id === mortalidadeForm.galpaoId) {
-        return {
-          ...galpao,
-          qtdeAves: galpao.qtdeAves - mortalidadeForm.qtdeAves
-        };
-      }
-      return galpao;
-    });
-    saveGalpoes(updatedGalpoes);
+    const updatedDespesas = [...despesas, novaDespesa];
+    saveDespesas(updatedDespesas);
 
     toast({
       title: "Sucesso!",
-      description: `Mortalidade registrada. ${mortalidadeForm.qtdeAves} aves foram deduzidas do ${selectedGalpao.nome}.`,
+      description: "Despesa registrada com sucesso.",
     });
 
-    setMortalidadeForm({ data: "", galpaoId: "", qtdeAves: 0, causa: "" });
-    setShowMortalidadeForm(false);
+    setDespesaForm({ data: "", descricao: "", categoria: "", valor: 0 });
+    setShowDespesaForm(false);
   };
 
-  const handleManejoSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const editarCategoria = (categoria: CategoriaDespesa) => {
+    setEditandoCategoria(categoria);
+    setCategoriaForm({
+      nome: categoria.nome,
+      descricao: categoria.descricao || ""
+    });
+    setShowCategoriaForm(true);
+  };
+
+  const excluirCategoria = (id: string) => {
+    const updatedCategorias = categorias.filter(cat => cat.id !== id);
+    saveCategorias(updatedCategorias);
     
-    const selectedGalpao = galpoes.find(g => g.id === manejoForm.galpaoId);
-    if (!selectedGalpao) {
-      toast({
-        title: "Erro",
-        description: "Selecione um galpão válido.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const newEvento: EventoManejo = {
-      id: Date.now().toString(),
-      data: manejoForm.data,
-      galpaoId: manejoForm.galpaoId,
-      galpaoNome: selectedGalpao.nome,
-      tipoManejo: manejoForm.tipoManejo,
-      descricao: manejoForm.descricao,
-      custoManejo: manejoForm.custoManejo
-    };
-
-    const updatedEventos = [...eventosManejo, newEvento];
-    setEventosManejo(updatedEventos);
-    localStorage.setItem('eventosManejo', JSON.stringify(updatedEventos));
-
     toast({
-      title: "Sucesso!",
-      description: "Manejo registrado com sucesso.",
+      title: "Categoria removida",
+      description: "Categoria excluída com sucesso.",
     });
-
-    setManejoForm({ data: "", galpaoId: "", tipoManejo: "", descricao: "", custoManejo: 0 });
-    setShowManejoForm(false);
   };
+
+  const excluirDespesa = (id: string) => {
+    const updatedDespesas = despesas.filter(desp => desp.id !== id);
+    saveDespesas(updatedDespesas);
+    
+    toast({
+      title: "Despesa removida",
+      description: "Despesa excluída com sucesso.",
+    });
+  };
+
+  const totalDespesas = despesas.reduce((acc, despesa) => acc + despesa.valor, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
@@ -191,10 +200,10 @@ const Despesas = () => {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Eventos do Lote
+              Controle de Despesas
             </h1>
             <p className="text-gray-600">
-              Registro de mortalidade e manejos por galpão
+              Gestão completa de categorias e lançamento de despesas operacionais
             </p>
           </div>
           <Button onClick={() => navigate('/')} variant="outline">
@@ -203,219 +212,232 @@ const Despesas = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Registrar Mortalidade</CardTitle>
-                <Button onClick={() => setShowMortalidadeForm(!showMortalidadeForm)}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Nova Mortalidade
-                </Button>
+        {/* Card de resumo */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Resumo Financeiro</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-red-600 mb-2">
+                R$ {totalDespesas.toFixed(2)}
               </div>
-            </CardHeader>
-            <CardContent>
-              {showMortalidadeForm && (
-                <form onSubmit={handleMortalidadeSubmit} className="space-y-4 p-4 border rounded-lg bg-gray-50 mb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="dataMortalidade">Data</Label>
-                      <Input
-                        id="dataMortalidade"
-                        type="date"
-                        value={mortalidadeForm.data}
-                        onChange={(e) => setMortalidadeForm({ ...mortalidadeForm, data: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="galpaoMortalidade">Galpão</Label>
-                      <Select value={mortalidadeForm.galpaoId} onValueChange={(value) => setMortalidadeForm({ ...mortalidadeForm, galpaoId: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o galpão" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {galpoes.map((galpao) => (
-                            <SelectItem key={galpao.id} value={galpao.id}>
-                              {galpao.nome} - {galpao.qtdeAves} aves
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="qtdeAvesMortalidade">Quantidade de Aves</Label>
-                      <Input
-                        id="qtdeAvesMortalidade"
-                        type="number"
-                        value={mortalidadeForm.qtdeAves}
-                        onChange={(e) => setMortalidadeForm({ ...mortalidadeForm, qtdeAves: Number(e.target.value) })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="causaMortalidade">Causa / Observação</Label>
-                      <Input
-                        id="causaMortalidade"
-                        value={mortalidadeForm.causa}
-                        onChange={(e) => setMortalidadeForm({ ...mortalidadeForm, causa: e.target.value })}
-                        placeholder="Ex: Doença, Predador, etc."
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="submit">Registrar Mortalidade</Button>
-                    <Button type="button" variant="outline" onClick={() => setShowMortalidadeForm(false)}>
-                      Cancelar
-                    </Button>
-                  </div>
-                </form>
-              )}
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Galpão</TableHead>
-                    <TableHead>Qtde Aves</TableHead>
-                    <TableHead>Causa</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {eventosMortalidade.map((evento) => (
-                    <TableRow key={evento.id}>
-                      <TableCell>{new Date(evento.data).toLocaleDateString('pt-BR')}</TableCell>
-                      <TableCell>{evento.galpaoNome}</TableCell>
-                      <TableCell className="text-red-600 font-bold">{evento.qtdeAves}</TableCell>
-                      <TableCell>{evento.causa}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {eventosMortalidade.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  Nenhuma mortalidade registrada ainda.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Registrar Manejo</CardTitle>
-                <Button onClick={() => setShowManejoForm(!showManejoForm)}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Novo Manejo
-                </Button>
+              <div className="text-gray-600">
+                Total de despesas registradas
               </div>
-            </CardHeader>
-            <CardContent>
-              {showManejoForm && (
-                <form onSubmit={handleManejoSubmit} className="space-y-4 p-4 border rounded-lg bg-gray-50 mb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="dataManejo">Data</Label>
-                      <Input
-                        id="dataManejo"
-                        type="date"
-                        value={manejoForm.data}
-                        onChange={(e) => setManejoForm({ ...manejoForm, data: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="galpaoManejo">Galpão</Label>
-                      <Select value={manejoForm.galpaoId} onValueChange={(value) => setManejoForm({ ...manejoForm, galpaoId: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o galpão" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {galpoes.map((galpao) => (
-                            <SelectItem key={galpao.id} value={galpao.id}>
-                              {galpao.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="tipoManejo">Tipo de Manejo</Label>
-                      <Select value={manejoForm.tipoManejo} onValueChange={(value) => setManejoForm({ ...manejoForm, tipoManejo: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Vacina">Vacina</SelectItem>
-                          <SelectItem value="Pesagem">Pesagem</SelectItem>
-                          <SelectItem value="Debicagem">Debicagem</SelectItem>
-                          <SelectItem value="Transferência">Transferência</SelectItem>
-                          <SelectItem value="Outros">Outros</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="custoManejo">Custo (R$)</Label>
-                      <Input
-                        id="custoManejo"
-                        type="number"
-                        step="0.01"
-                        value={manejoForm.custoManejo}
-                        onChange={(e) => setManejoForm({ ...manejoForm, custoManejo: Number(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="descricaoManejo">Descrição</Label>
-                    <Textarea
-                      id="descricaoManejo"
-                      value={manejoForm.descricao}
-                      onChange={(e) => setManejoForm({ ...manejoForm, descricao: e.target.value })}
-                      placeholder="Ex: Aplicação da vacina NewCastle"
-                      required
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button type="submit">Registrar Manejo</Button>
-                    <Button type="button" variant="outline" onClick={() => setShowManejoForm(false)}>
-                      Cancelar
-                    </Button>
-                  </div>
-                </form>
-              )}
+            </div>
+          </CardContent>
+        </Card>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Galpão</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Custo</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {eventosManejo.map((evento) => (
-                    <TableRow key={evento.id}>
-                      <TableCell>{new Date(evento.data).toLocaleDateString('pt-BR')}</TableCell>
-                      <TableCell>{evento.galpaoNome}</TableCell>
-                      <TableCell>{evento.tipoManejo}</TableCell>
-                      <TableCell>R$ {evento.custoManejo.toFixed(2)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              {eventosManejo.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  Nenhum manejo registrado ainda.
+        <Tabs defaultValue="despesas" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="despesas">Lançamento de Despesas</TabsTrigger>
+            <TabsTrigger value="categorias">Categorias</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="despesas">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Registrar Nova Despesa</CardTitle>
+                  <Button onClick={() => setShowDespesaForm(!showDespesaForm)}>
+                    <PlusIcon className="mr-2 h-4 w-4" />
+                    Nova Despesa
+                  </Button>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </CardHeader>
+              <CardContent>
+                {showDespesaForm && (
+                  <form onSubmit={handleDespesaSubmit} className="space-y-4 p-4 border rounded-lg bg-gray-50 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="dataDespesa">Data da Despesa</Label>
+                        <Input
+                          id="dataDespesa"
+                          type="date"
+                          value={despesaForm.data}
+                          onChange={(e) => setDespesaForm({ ...despesaForm, data: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="categoriaDespesa">Categoria</Label>
+                        <Select value={despesaForm.categoria} onValueChange={(value) => setDespesaForm({ ...despesaForm, categoria: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categorias.map((categoria) => (
+                              <SelectItem key={categoria.id} value={categoria.nome}>
+                                {categoria.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="descricaoDespesa">Descrição da Despesa</Label>
+                        <Input
+                          id="descricaoDespesa"
+                          value={despesaForm.descricao}
+                          onChange={(e) => setDespesaForm({ ...despesaForm, descricao: e.target.value })}
+                          placeholder="Ex: Conta de luz do mês de janeiro"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="valorDespesa">Valor (R$)</Label>
+                        <Input
+                          id="valorDespesa"
+                          type="number"
+                          step="0.01"
+                          value={despesaForm.valor}
+                          onChange={(e) => setDespesaForm({ ...despesaForm, valor: Number(e.target.value) })}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit">Registrar Despesa</Button>
+                      <Button type="button" variant="outline" onClick={() => setShowDespesaForm(false)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {despesas.map((despesa) => (
+                      <TableRow key={despesa.id}>
+                        <TableCell>{new Date(despesa.data).toLocaleDateString('pt-BR')}</TableCell>
+                        <TableCell className="font-medium">{despesa.descricao}</TableCell>
+                        <TableCell>{despesa.categoria}</TableCell>
+                        <TableCell className="text-red-600 font-bold">R$ {despesa.valor.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => excluirDespesa(despesa.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {despesas.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    Nenhuma despesa registrada ainda.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="categorias">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Gerenciar Categorias</CardTitle>
+                  <Button onClick={() => setShowCategoriaForm(!showCategoriaForm)}>
+                    <PlusIcon className="mr-2 h-4 w-4" />
+                    Nova Categoria
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {showCategoriaForm && (
+                  <form onSubmit={handleCategoriaSubmit} className="space-y-4 p-4 border rounded-lg bg-gray-50 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="nomeCategoria">Nome da Categoria</Label>
+                        <Input
+                          id="nomeCategoria"
+                          value={categoriaForm.nome}
+                          onChange={(e) => setCategoriaForm({ ...categoriaForm, nome: e.target.value })}
+                          placeholder="Ex: Veterinário"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="descricaoCategoria">Descrição (Opcional)</Label>
+                        <Input
+                          id="descricaoCategoria"
+                          value={categoriaForm.descricao}
+                          onChange={(e) => setCategoriaForm({ ...categoriaForm, descricao: e.target.value })}
+                          placeholder="Descrição da categoria"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit">
+                        {editandoCategoria ? 'Atualizar' : 'Salvar'} Categoria
+                      </Button>
+                      <Button type="button" variant="outline" onClick={() => {
+                        setShowCategoriaForm(false);
+                        setEditandoCategoria(null);
+                        setCategoriaForm({ nome: "", descricao: "" });
+                      }}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {categorias.map((categoria) => (
+                      <TableRow key={categoria.id}>
+                        <TableCell className="font-medium">{categoria.nome}</TableCell>
+                        <TableCell>{categoria.descricao || '-'}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => editarCategoria(categoria)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => excluirCategoria(categoria.id)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
