@@ -1,5 +1,5 @@
 
-# 📱💻 Instruções de Build - Sistema de Gestão Avícola
+# 📱🌐 Instruções de Build - Sistema de Gestão Avícola
 
 ## 🚀 Configuração Inicial
 
@@ -9,6 +9,27 @@
    - Clone: `git clone [SEU_REPO]`
    - `cd [NOME_DO_PROJETO]`
    - `npm install`
+
+## 🌐 Build Web
+
+### Desenvolvimento Local
+```bash
+# Instalar dependências
+npm install
+
+# Executar em modo desenvolvimento
+npm run dev
+
+# Build para produção
+npm run build
+
+# Preview do build
+npm run preview
+```
+
+### Deploy Web
+- **Netlify/Vercel**: Conecte seu repositório GitHub
+- **Manual**: Faça upload da pasta `dist/` após `npm run build`
 
 ## 📱 Build Mobile (iOS/Android)
 
@@ -21,7 +42,7 @@
 # 1. Build da aplicação web
 npm run build
 
-# 2. Adicionar plataformas
+# 2. Adicionar plataformas (primeira vez)
 npx cap add ios
 npx cap add android
 
@@ -42,37 +63,6 @@ npx cap open android # Para Android (Android Studio)
 - **Android**: Gere keystore para assinatura
 - **Ícones**: Coloque ícones em `ios/App/App/Assets.xcassets` e `android/app/src/main/res`
 
-## 💻 Build Desktop (Windows/Mac/Linux)
-
-### Comandos
-```bash
-# 1. Build da aplicação web
-npm run build
-
-# 2. Compilar Electron
-npx tsc electron/main.ts --outDir dist-electron --target es2020 --module commonjs --esModuleInterop
-
-# 3. Build executável
-npx electron-builder --win  # Windows
-npx electron-builder --mac  # macOS
-npx electron-builder --linux # Linux
-
-# Arquivos serão gerados na pasta 'release/'
-```
-
-### Scripts NPM Sugeridos (adicione ao package.json)
-```json
-{
-  "scripts": {
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:8080 && electron dist-electron/main.js\"",
-    "electron:build": "npm run build && npx tsc electron/main.ts --outDir dist-electron --target es2020 --module commonjs --esModuleInterop && electron-builder",
-    "cap:sync": "cap sync",
-    "cap:ios": "cap open ios",
-    "cap:android": "cap open android"
-  }
-}
-```
-
 ## 🔧 Funcionalidades Offline
 
 ### Armazenamento Local
@@ -87,29 +77,29 @@ npx electron-builder --linux # Linux
 
 ## 📋 Checklist Pré-Build
 
+### Web
+- [ ] Build sem erros (`npm run build`)
+- [ ] Testes funcionais
+- [ ] Otimização de assets
+- [ ] Configuração de domínio (se aplicável)
+
 ### Mobile
 - [ ] Ícones preparados (iOS: 1024x1024, Android: múltiplos tamanhos)
 - [ ] Splash screens configurados
 - [ ] Permissões definidas (se necessário)
 - [ ] Certificados de assinatura (iOS/Android)
 
-### Desktop
-- [ ] Ícone principal (.ico para Windows, .icns para Mac)
-- [ ] Configurações de assinatura (opcional)
-- [ ] Metadados da aplicação
-- [ ] Auto-updater configurado (opcional)
-
 ## 🚨 Solução de Problemas
+
+### Erros Comuns Web
+- **Build falha**: Verificar dependências e TypeScript
+- **Assets não carregam**: Verificar caminhos públicos
+- **Performance**: Otimizar imports e lazy loading
 
 ### Erros Comuns Mobile
 - **Build falha**: Verificar Xcode/Android Studio atualizados
 - **Ícones não aparecem**: Verificar caminhos e formatos
 - **App não inicia**: Verificar configurações de servidor no capacitor.config.ts
-
-### Erros Comuns Desktop
-- **Electron não inicia**: Verificar compilação TypeScript
-- **Build falha**: Verificar electron-builder.config.js
-- **Assets faltando**: Verificar caminhos no electron/assets/
 
 ## 📞 Suporte
 
@@ -119,6 +109,5 @@ npx electron-builder --linux # Linux
 
 ---
 
-**Versão**: 1.0.0  
-**Última atualização**: $(date)
-```
+**Versão**: 2.0.0  
+**Última atualização**: 2025-06-30
