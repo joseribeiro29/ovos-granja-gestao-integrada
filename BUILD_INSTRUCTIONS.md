@@ -37,40 +37,55 @@ npx cap open android # Para Android (Android Studio)
 # Android: Build > Generate Signed Bundle/APK
 ```
 
-### Configurações Importantes
-- **iOS**: Configure signing team no Xcode
-- **Android**: Gere keystore para assinatura
-- **Ícones**: Coloque ícones em `ios/App/App/Assets.xcassets` e `android/app/src/main/res`
+## 💻 Versão Desktop/Windows
 
-## 💻 Build Desktop (Windows/Mac/Linux)
+### Opção 1: PWA Instalável (Recomendado)
+A aplicação já está configurada como PWA e pode ser "instalada" no Windows:
 
-### Comandos
+1. **Build da aplicação**:
 ```bash
-# 1. Build da aplicação web
 npm run build
-
-# 2. Compilar Electron
-npx tsc electron/main.ts --outDir dist-electron --target es2020 --module commonjs --esModuleInterop
-
-# 3. Build executável
-npx electron-builder --win  # Windows
-npx electron-builder --mac  # macOS
-npx electron-builder --linux # Linux
-
-# Arquivos serão gerados na pasta 'release/'
 ```
 
-### Scripts NPM Sugeridos (adicione ao package.json)
-```json
-{
-  "scripts": {
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:8080 && electron dist-electron/main.js\"",
-    "electron:build": "npm run build && npx tsc electron/main.ts --outDir dist-electron --target es2020 --module commonjs --esModuleInterop && electron-builder",
-    "cap:sync": "cap sync",
-    "cap:ios": "cap open ios",
-    "cap:android": "cap open android"
-  }
-}
+2. **Servir localmente**:
+```bash
+# Instalar servidor simples
+npm install -g serve
+
+# Servir a aplicação
+serve -s dist -l 3000
+```
+
+3. **Instalar como PWA**:
+   - Abra `http://localhost:3000` no Chrome/Edge
+   - Clique no ícone de "instalar" na barra de endereços
+   - A aplicação será instalada como um app nativo do Windows
+
+### Opção 2: Electron (Alternativa - pode ter problemas)
+Se quiser tentar o Electron novamente:
+
+```bash
+# Instalar dependências (pode falhar em alguns sistemas)
+npm install electron electron-builder --save-dev
+
+# Build
+npm run build
+npm run electron:build
+```
+
+### Opção 3: Servidor Local Permanente
+Para usar offline permanentemente:
+
+1. **Criar executável simples**:
+```bash
+# Instalar dependências
+npm install -g pkg http-server
+
+# Criar script servidor
+echo "const handler = require('serve-handler'); const http = require('http'); const server = http.createServer((req, res) => { return handler(req, res, { public: './dist' }); }); server.listen(3000, () => { console.log('Aplicação rodando em http://localhost:3000'); });" > server.js
+
+# Criar executável
+pkg server.js --targets node16-win-x64 --output sistema-avicola.exe
 ```
 
 ## 🔧 Funcionalidades Offline
@@ -80,45 +95,49 @@ npx electron-builder --linux # Linux
 - Backup/Restore através do componente `OfflineManager`
 - Service Worker para cache de assets
 
-### Gerenciamento de Dados
-- **Backup**: Exporta dados para arquivo JSON
-- **Restore**: Importa dados de backup
-- **Limpar**: Remove todos os dados locais
+### PWA Features
+- Instalável no Windows, Mac, Linux
+- Funciona offline
+- Ícones e splash screen configurados
+- Atalhos rápidos no menu iniciar
 
 ## 📋 Checklist Pré-Build
 
 ### Mobile
 - [ ] Ícones preparados (iOS: 1024x1024, Android: múltiplos tamanhos)
 - [ ] Splash screens configurados
-- [ ] Permissões definidas (se necessário)
 - [ ] Certificados de assinatura (iOS/Android)
 
-### Desktop
-- [ ] Ícone principal (.ico para Windows, .icns para Mac)
-- [ ] Configurações de assinatura (opcional)
-- [ ] Metadados da aplicação
-- [ ] Auto-updater configurado (opcional)
+### Desktop/PWA
+- [ ] Service Worker configurado
+- [ ] Manifest.json atualizado
+- [ ] Ícones PWA preparados
+- [ ] Teste de funcionalidade offline
 
 ## 🚨 Solução de Problemas
 
-### Erros Comuns Mobile
-- **Build falha**: Verificar Xcode/Android Studio atualizados
-- **Ícones não aparecem**: Verificar caminhos e formatos
-- **App não inicia**: Verificar configurações de servidor no capacitor.config.ts
+### PWA não instala
+- Verifique se está usando HTTPS ou localhost
+- Confirme que manifest.json está acessível
+- Teste em Chrome/Edge (melhor suporte PWA)
 
-### Erros Comuns Desktop
-- **Electron não inicia**: Verificar compilação TypeScript
-- **Build falha**: Verificar electron-builder.config.js
-- **Assets faltando**: Verificar caminhos no electron/assets/
+### Electron falha no build
+- Use a opção PWA como alternativa
+- Problemas com node-gyp são comuns no Windows
+- Considere usar Docker para build
 
-## 📞 Suporte
+### Mobile build falha
+- Verifique Xcode/Android Studio atualizados
+- Execute `npx cap doctor` para diagnóstico
+- Limpe cache: `npx cap clean`
 
-- Verifique logs de build para erros específicos
-- Teste em dispositivos/emuladores antes do build final
-- Mantenha backups dos dados antes de updates
+## 📞 Recomendação
+
+**Para Windows**: Use a versão PWA - é mais simples, funciona offline e se instala como um app nativo sem os problemas do Electron.
+
+**Para Mobile**: Use Capacitor normalmente - funciona muito bem.
 
 ---
 
-**Versão**: 1.0.0  
-**Última atualização**: $(date)
-```
+**Versão**: 2.0.0  
+**Última atualização**: 2025-06-30
