@@ -16,6 +16,7 @@ import {
   Calculator
 } from "lucide-react";
 import OfflineManager from "@/components/OfflineManager";
+import PWAInstaller from "@/components/PWAInstaller";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -116,6 +117,9 @@ const Dashboard = () => {
         <div className="mb-8">
           <OfflineManager />
         </div>
+
+        {/* PWA Installer */}
+        <PWAInstaller />
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {modules.map((module) => {
