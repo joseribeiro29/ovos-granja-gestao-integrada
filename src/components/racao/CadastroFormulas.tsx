@@ -39,6 +39,7 @@ interface Formula {
   ingredientes: Ingrediente[];
   custoTotalPor1000kg: number;
   custoPorKg: number;
+  pesoTotal: number;
 }
 
 const CadastroFormulas = () => {
@@ -55,6 +56,11 @@ const CadastroFormulas = () => {
     insumo: "",
     quantidade: 0
   });
+
+  // Estados para os cálculos
+  const [pesoTotalDaFormula, setPesoTotalDaFormula] = useState(0);
+  const [custoTotalDaFormula, setCustoTotalDaFormula] = useState(0);
+  const [custoFinalPorKg, setCustoFinalPorKg] = useState(0);
 
   // Limpar dados ao inicializar
   useEffect(() => {
@@ -114,35 +120,58 @@ const CadastroFormulas = () => {
     loadInsumos();
   }, []);
 
-  const calcularCustos = (ingredientesList: Ingrediente[]) => {
-    if (!ingredientesList || ingredientesList.length === 0) {
-      return { custoTotal: 0, custoPorKg: 0, pesoTotal: 0 };
+  // UseEffect para recalcular automaticamente quando a lista de ingredientes mudar
+  useEffect(() => {
+    console.log("Recalculando custos devido a mudança nos ingredientes...");
+    
+    // Calcular peso total da fórmula
+    const pesoTotal = ingredientes.reduce((total, ingrediente) => {
+      const quantidade = ingrediente.quantidade || 0;
+      console.log(`Ingrediente: ${ingrediente.insumo}, Quantidade: ${quantidade}kg`);
+      return total + quantidade;
+    }, 0);
+
+    // Calcular custo total da fórmula
+    const custoTotal = ingredientes.reduce((total, ingrediente) => {
+      const custo = ingrediente.custo || 0;
+      console.log(`Ingrediente: ${ingrediente.insumo}, Custo: R$ ${custo.toFixed(2)}`);
+      return total + custo;
+    }, 0);
+
+    // Calcular custo por kg com proteção contra divisão por zero
+    let custoPorKg = 0;
+    if (pesoTotal > 0) {
+      custoPorKg = custoTotal / pesoTotal;
     }
 
-    const pesoTotal = ingredientesList.reduce((total, ingrediente) => {
-      return total + (ingrediente.quantidade || 0);
-    }, 0);
+    console.log("=== CÁLCULOS FINAIS ===");
+    console.log(`Peso Total da Fórmula: ${pesoTotal.toFixed(2)}kg`);
+    console.log(`Custo Total da Fórmula: R$ ${custoTotal.toFixed(2)}`);
+    console.log(`Custo por Kg: R$ ${custoPorKg.toFixed(2)}`);
+    console.log("========================");
 
-    const custoTotal = ingredientesList.reduce((total, ingrediente) => {
-      return total + (ingrediente.custo || 0);
-    }, 0);
-
-    const custoPorKg = pesoTotal > 0 ? custoTotal / pesoTotal : 0;
-
-    console.log(`Cálculo de custos:`, {
-      pesoTotal: pesoTotal.toFixed(2),
-      custoTotal: custoTotal.toFixed(2),
-      custoPorKg: custoPorKg.toFixed(2)
-    });
-
-    return { custoTotal, custoPorKg, pesoTotal };
-  };
+    // Atualizar os estados
+    setPesoTotalDaFormula(pesoTotal);
+    setCustoTotalDaFormula(custoTotal);
+    setCustoFinalPorKg(custoPorKg);
+  }, [ingredientes]);
 
   const adicionarIngrediente = () => {
     if (!novoIngrediente.insumo || novoIngrediente.quantidade <= 0) {
       toast({
         title: "Erro",
         description: "Selecione um insumo e informe uma quantidade válida.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Verificar se o ingrediente já foi adicionado
+    const ingredienteExistente = ingredientes.find(ing => ing.insumo === novoIngrediente.insumo);
+    if (ingredienteExistente) {
+      toast({
+        title: "Erro",
+        description: "Este ingrediente já foi adicionado à fórmula.",
         variant: "destructive"
       });
       return;
@@ -171,12 +200,12 @@ const CadastroFormulas = () => {
 
     const custo = precoKg * novoIngrediente.quantidade;
 
-    console.log(`Adicionando ingrediente:`, {
-      insumo: novoIngrediente.insumo,
-      quantidade: novoIngrediente.quantidade,
-      precoKg,
-      custo
-    });
+    console.log(`=== ADICIONANDO INGREDIENTE ===`);
+    console.log(`Insumo: ${novoIngrediente.insumo}`);
+    console.log(`Quantidade: ${novoIngrediente.quantidade}kg`);
+    console.log(`Preço por Kg: R$ ${precoKg.toFixed(2)}`);
+    console.log(`Custo do Ingrediente: R$ ${custo.toFixed(2)}`);
+    console.log("===============================");
 
     const novoIngredienteCompleto: Ingrediente = {
       insumo: novoIngrediente.insumo,
@@ -185,25 +214,25 @@ const CadastroFormulas = () => {
       custo: custo
     };
 
-    const novosIngredientes = [...ingredientes, novoIngredienteCompleto];
-    setIngredientes(novosIngredientes);
+    setIngredientes(prev => [...prev, novoIngredienteCompleto]);
     setNovoIngrediente({ insumo: "", quantidade: 0 });
-
-    const { custoTotal, custoPorKg } = calcularCustos(novosIngredientes);
 
     toast({
       title: "Ingrediente adicionado",
-      description: `${novoIngrediente.insumo} adicionado. Custo: ${custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
+      description: `${novoIngrediente.insumo} - ${novoIngrediente.quantidade}kg adicionado. Custo: ${custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
     });
   };
 
   const removerIngrediente = (index: number) => {
+    const ingredienteRemovido = ingredientes[index];
     const novosIngredientes = ingredientes.filter((_, i) => i !== index);
     setIngredientes(novosIngredientes);
     
+    console.log(`Ingrediente removido: ${ingredienteRemovido.insumo}`);
+    
     toast({
       title: "Ingrediente removido",
-      description: "Ingrediente removido da fórmula.",
+      description: `${ingredienteRemovido.insumo} removido da fórmula.`,
     });
   };
 
@@ -228,24 +257,31 @@ const CadastroFormulas = () => {
       return;
     }
 
-    const { custoTotal, custoPorKg } = calcularCustos(ingredientes);
-
     const novaFormula: Formula = {
       id: Date.now().toString(),
       nome: formData.nome,
       faseAve: formData.faseAve,
       ingredientes: [...ingredientes],
-      custoTotalPor1000kg: custoTotal,
-      custoPorKg: custoPorKg
+      custoTotalPor1000kg: custoTotalDaFormula,
+      custoPorKg: custoFinalPorKg,
+      pesoTotal: pesoTotalDaFormula
     };
 
     const updatedFormulas = [...formulas, novaFormula];
     localStorage.setItem('formulasRacao', JSON.stringify(updatedFormulas));
     setFormulas(updatedFormulas);
 
+    console.log("=== FÓRMULA SALVA ===");
+    console.log(`Nome: ${formData.nome}`);
+    console.log(`Fase: ${formData.faseAve}`);
+    console.log(`Peso Total: ${pesoTotalDaFormula.toFixed(2)}kg`);
+    console.log(`Custo Total: R$ ${custoTotalDaFormula.toFixed(2)}`);
+    console.log(`Custo por Kg: R$ ${custoFinalPorKg.toFixed(2)}`);
+    console.log("====================");
+
     toast({
       title: "Sucesso!",
-      description: `Fórmula "${formData.nome}" cadastrada. Custo por Kg: ${custoPorKg.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
+      description: `Fórmula "${formData.nome}" cadastrada. Custo por Kg: ${custoFinalPorKg.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
     });
 
     // Reset form
@@ -253,8 +289,6 @@ const CadastroFormulas = () => {
     setIngredientes([]);
     setShowForm(false);
   };
-
-  const { custoTotal, custoPorKg, pesoTotal } = calcularCustos(ingredientes);
 
   return (
     <div className="space-y-6">
@@ -356,8 +390,12 @@ const CadastroFormulas = () => {
                           <TableRow key={index}>
                             <TableCell className="font-medium">{ingrediente.insumo}</TableCell>
                             <TableCell>{ingrediente.quantidade.toFixed(1)}kg</TableCell>
-                            <TableCell>{ingrediente.precoKg.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                            <TableCell className="font-bold text-green-600">{ingrediente.custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="font-semibold text-blue-600">
+                              {ingrediente.precoKg.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </TableCell>
+                            <TableCell className="font-bold text-green-600">
+                              {ingrediente.custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </TableCell>
                             <TableCell>
                               <Button
                                 variant="destructive"
@@ -376,15 +414,15 @@ const CadastroFormulas = () => {
                       <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
                           <span className="font-medium">Peso Total: </span>
-                          <span className="font-bold text-blue-600">{pesoTotal.toFixed(1)}kg</span>
+                          <span className="font-bold text-blue-600 text-lg">{pesoTotalDaFormula.toFixed(1)}kg</span>
                         </div>
                         <div>
                           <span className="font-medium">Custo Total: </span>
-                          <span className="font-bold text-blue-600">{custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                          <span className="font-bold text-blue-600 text-lg">{custoTotalDaFormula.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
                         <div>
                           <span className="font-medium">Custo por Kg: </span>
-                          <span className="font-bold text-green-600 text-lg">{custoPorKg.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                          <span className="font-bold text-green-600 text-xl">{custoFinalPorKg.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
                       </div>
                     </div>
@@ -418,6 +456,7 @@ const CadastroFormulas = () => {
                     <div>
                       <h3 className="font-bold text-lg">{formula.nome}</h3>
                       <p className="text-gray-600">Fase: {formula.faseAve}</p>
+                      <p className="text-gray-600">Peso Total: {formula.pesoTotal?.toFixed(1) || 0}kg</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-600">Custo por Kg</p>
