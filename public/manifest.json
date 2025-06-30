@@ -5,19 +5,60 @@
   "description": "Sistema completo de gestão para granjas de ovos",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#3b82f6",
+  "background_color": "#ffffff",
   "theme_color": "#3b82f6",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "pt-BR",
+  "dir": "ltr",
   "icons": [
+    {
+      "src": "/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable any"
     }
   ],
   "categories": ["business", "productivity"],
@@ -34,6 +75,13 @@
       "short_name": "Ovos",
       "description": "Registro de produção",
       "url": "/ovos",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Vendas",
+      "short_name": "Vendas",
+      "description": "Gerenciar vendas",
+      "url": "/vendas",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]

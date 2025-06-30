@@ -3,16 +3,23 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>Sistema de Gestão Avícola</title>
-    <meta name="description" content="Sistema completo de gestão para granjas de ovos" />
+    <meta name="description" content="Sistema completo de gestão para granjas de ovos - PWA" />
     <meta name="author" content="Sistema Avícola" />
+    <meta name="keywords" content="gestão, avícola, ovos, granja, produção, PWA" />
 
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#3b82f6" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Gestão Avícola" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="msapplication-TileColor" content="#3b82f6" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    
+    <!-- Prevent zoom on iOS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     
     <!-- Manifest -->
     <link rel="manifest" href="/manifest.json" />
@@ -20,15 +27,33 @@
     <!-- Icons -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icon-152.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png" />
+    <link rel="apple-touch-startup-image" href="/icon-512.png" />
 
+    <!-- Microsoft Tiles -->
+    <meta name="msapplication-TileImage" content="/icon-144.png" />
+    <meta name="msapplication-square70x70logo" content="/icon-72.png" />
+    <meta name="msapplication-square150x150logo" content="/icon-144.png" />
+    <meta name="msapplication-wide310x150logo" content="/icon-192.png" />
+    <meta name="msapplication-square310x310logo" content="/icon-512.png" />
+
+    <!-- OpenGraph -->
     <meta property="og:title" content="Sistema de Gestão Avícola" />
     <meta property="og:description" content="Sistema completo de gestão para granjas de ovos" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:image" content="/icon-512.png" />
+    <meta property="og:url" content="/" />
 
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:title" content="Sistema de Gestão Avícola" />
+    <meta name="twitter:description" content="Sistema completo de gestão para granjas de ovos" />
+    <meta name="twitter:image" content="/icon-512.png" />
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/src/main.tsx" as="script" />
+    <link rel="preload" href="/src/index.css" as="style" />
   </head>
 
   <body>
@@ -41,12 +66,41 @@
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
-              console.log('SW registered: ', registration);
+              console.log('PWA: Service Worker registrado com sucesso', registration);
+              
+              // Check for updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      console.log('PWA: Nova versão disponível');
+                      // Notify user about update
+                      if (confirm('Nova versão disponível! Deseja atualizar?')) {
+                        window.location.reload();
+                      }
+                    }
+                  });
+                }
+              });
             })
             .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
+              console.error('PWA: Falha ao registrar Service Worker:', registrationError);
             });
         });
+      }
+
+      // Handle install prompt
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        console.log('PWA: Install prompt disponível');
+      });
+
+      // Track if app is launched from home screen
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('PWA: Aplicativo iniciado como PWA');
       }
     </script>
   </body>
