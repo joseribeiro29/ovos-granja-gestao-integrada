@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +28,7 @@ interface Insumo {
 interface Ingrediente {
   insumo: string;
   quantidade: number;
+  precoKg: number; // Adicionar precoKg aqui também
   custo: number;
 }
 
@@ -67,10 +69,8 @@ const CadastroFormulas = () => {
         if (estoqueData) {
           const estoque = JSON.parse(estoqueData);
           console.log("Estoque encontrado:", estoque);
-          console.log("Dados do estoque:", estoque);
           
-          // CORREÇÃO CRÍTICA: estoque é um objeto, não array
-          // Criar array de insumos com preços do estoque
+          // CORREÇÃO: estoque é um objeto, não array
           const insumosComPreco = insumosBase.map((insumo: Insumo) => {
             const estoqueItem = estoque[insumo.nome];
             const preco = estoqueItem?.valorPorKg || estoqueItem?.precoUnitario || 0;
@@ -120,7 +120,7 @@ const CadastroFormulas = () => {
 
   const calcularCustos = (ingredientesList: Ingrediente[]) => {
     if (!ingredientesList || ingredientesList.length === 0) {
-      return { custoTotal: 0, custoPorKg: 0 };
+      return { custoTotal: 0, custoPorKg: 0, pesoTotal: 0 };
     }
 
     const custoTotal = ingredientesList.reduce((total, ingrediente) => {
@@ -133,7 +133,9 @@ const CadastroFormulas = () => {
 
     const custoPorKg = pesoTotal > 0 ? custoTotal / pesoTotal : 0;
 
-    return { custoTotal, custoPorKg };
+    console.log(`Cálculo de custos - Peso total: ${pesoTotal}kg, Custo total: R$ ${custoTotal.toFixed(2)}, Custo por kg: R$ ${custoPorKg.toFixed(2)}`);
+
+    return { custoTotal, custoPorKg, pesoTotal };
   };
 
   const adicionarIngrediente = () => {
@@ -148,7 +150,17 @@ const CadastroFormulas = () => {
 
     // Buscar preço do insumo selecionado
     const insumoSelecionado = insumos.find(i => i.nome === novoIngrediente.insumo);
-    const precoKg = insumoSelecionado?.precoKg || 0;
+    
+    if (!insumoSelecionado) {
+      toast({
+        title: "Erro",
+        description: "Insumo selecionado não encontrado.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const precoKg = insumoSelecionado.precoKg || 0;
     const custo = precoKg * novoIngrediente.quantidade;
 
     console.log(`Adicionando ingrediente:`, {
@@ -161,6 +173,7 @@ const CadastroFormulas = () => {
     const novoIngredienteCompleto: Ingrediente = {
       insumo: novoIngrediente.insumo,
       quantidade: novoIngrediente.quantidade,
+      precoKg: precoKg,
       custo: custo
     };
 
@@ -168,12 +181,9 @@ const CadastroFormulas = () => {
     setIngredientes(novosIngredientes);
     setNovoIngrediente({ insumo: "", quantidade: 0 });
 
-    const { custoTotal, custoPorKg } = calcularCustos(novosIngredientes);
-    console.log(`Custos recalculados - Total: R$ ${custoTotal.toFixed(2)}, Por Kg: R$ ${custoPorKg.toFixed(2)}`);
-
     toast({
       title: "Ingrediente adicionado",
-      description: `${novoIngrediente.insumo} adicionado com sucesso. Custo: R$ ${custo.toFixed(2)}`,
+      description: `${novoIngrediente.insumo} adicionado com sucesso. Custo: ${custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`,
     });
   };
 
@@ -234,7 +244,7 @@ const CadastroFormulas = () => {
     );
   }
 
-  const { custoTotal, custoPorKg } = calcularCustos(ingredientes);
+  const { custoTotal, custoPorKg, pesoTotal } = calcularCustos(ingredientes);
 
   return (
     <div className="space-y-6">
@@ -297,7 +307,7 @@ const CadastroFormulas = () => {
                       <SelectContent>
                         {insumos.map((insumo) => (
                           <SelectItem key={insumo.id} value={insumo.nome}>
-                            {insumo.nome} - R$ {(insumo.precoKg || 0).toFixed(2)}/kg
+                            {insumo.nome} - {(insumo.precoKg || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/kg
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -334,41 +344,40 @@ const CadastroFormulas = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {ingredientes.map((ingrediente, index) => {
-                          const insumoInfo = insumos.find(i => i.nome === ingrediente.insumo);
-                          const precoKg = insumoInfo?.precoKg || 0;
-                          
-                          return (
-                            <TableRow key={index}>
-                              <TableCell className="font-medium">{ingrediente.insumo}</TableCell>
-                              <TableCell>{ingrediente.quantidade}kg</TableCell>
-                              <TableCell>R$ {precoKg.toFixed(2)}</TableCell>
-                              <TableCell className="font-bold text-green-600">R$ {ingrediente.custo.toFixed(2)}</TableCell>
-                              <TableCell>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => removerIngrediente(index)}
-                                >
-                                  <TrashIcon className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
+                        {ingredientes.map((ingrediente, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">{ingrediente.insumo}</TableCell>
+                            <TableCell>{ingrediente.quantidade}kg</TableCell>
+                            <TableCell>{ingrediente.precoKg.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="font-bold text-green-600">{ingrediente.custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => removerIngrediente(index)}
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
                       </TableBody>
                     </Table>
                     
                     {/* Resumo dos Custos */}
                     <div className="p-4 bg-blue-50 border-t">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="grid grid-cols-3 gap-4 text-sm">
                         <div>
-                          <span className="font-medium">Custo Total (1000kg): </span>
-                          <span className="font-bold text-blue-600">R$ {custoTotal.toFixed(2)}</span>
+                          <span className="font-medium">Peso Total: </span>
+                          <span className="font-bold text-blue-600">{pesoTotal.toFixed(1)}kg</span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Custo Total: </span>
+                          <span className="font-bold text-blue-600">{custoTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
                         <div>
                           <span className="font-medium">Custo por Kg: </span>
-                          <span className="font-bold text-blue-600">R$ {custoPorKg.toFixed(2)}</span>
+                          <span className="font-bold text-blue-600">{custoPorKg.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                         </div>
                       </div>
                     </div>
@@ -406,7 +415,7 @@ const CadastroFormulas = () => {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-600">Custo por Kg</p>
-                      <p className="font-bold text-green-600">R$ {formula.custoPorKg.toFixed(2)}</p>
+                      <p className="font-bold text-green-600">{formula.custoPorKg.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                     </div>
                   </div>
                   
@@ -414,10 +423,10 @@ const CadastroFormulas = () => {
                     <p><strong>Ingredientes:</strong></p>
                     {formula.ingredientes.map((ing, idx) => (
                       <p key={idx} className="ml-4">
-                        • {ing.insumo}: {ing.quantidade}kg (R$ {ing.custo.toFixed(2)})
+                        • {ing.insumo}: {ing.quantidade}kg ({ing.custo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
                       </p>
                     ))}
-                    <p className="mt-2"><strong>Custo Total (1000kg):</strong> R$ {formula.custoTotalPor1000kg.toFixed(2)}</p>
+                    <p className="mt-2"><strong>Custo Total:</strong> {formula.custoTotalPor1000kg.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                 </div>
               ))}
