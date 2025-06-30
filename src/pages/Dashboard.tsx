@@ -16,6 +16,7 @@ import {
   Calculator
 } from "lucide-react";
 import OfflineManager from "@/components/OfflineManager";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -166,6 +167,9 @@ const Dashboard = () => {
           </Card>
         </div>
       </div>
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   );
 };
