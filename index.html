@@ -5,194 +5,49 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sistema de Gestão Avícola</title>
-    <meta name="description" content="Sistema completo de gestão para granjas de ovos com integração total ao Windows" />
+    <meta name="description" content="Sistema completo de gestão para granjas de ovos" />
     <meta name="author" content="Sistema Avícola" />
-    <meta name="keywords" content="gestão avícola, granja, ovos, produção, agricultura, Windows PWA" />
 
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#3b82f6" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Gestão Avícola" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    
-    <!-- Windows PWA specific -->
-    <meta name="msapplication-TileColor" content="#3b82f6" />
-    <meta name="msapplication-TileImage" content="/icons/icon-144.png" />
-    <meta name="msapplication-config" content="/browserconfig.xml" />
     
     <!-- Manifest -->
     <link rel="manifest" href="/manifest.json" />
     
     <!-- Icons -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
     <meta property="og:title" content="Sistema de Gestão Avícola" />
-    <meta property="og:description" content="Sistema completo de gestão para granjas de ovos com integração total ao Windows" />
+    <meta property="og:description" content="Sistema completo de gestão para granjas de ovos" />
+    <meta property="og:type" content="website" />
     <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-    <meta property="og:url" content="https://00f0eb64-43a9-4abe-a7da-3c7a46022919.lovableproject.com" />
 
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:title" content="Sistema de Gestão Avícola" />
-    <meta name="twitter:description" content="Sistema completo de gestão para granjas de ovos" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <!-- Preload critical resources -->
-    <link rel="preload" href="/icons/icon-192.png" as="image" />
-    <link rel="preload" href="/manifest.json" as="fetch" crossorigin />
-
-    <!-- Window Controls Overlay CSS -->
-    <style>
-      /* Window Controls Overlay support */
-      @media (display-mode: window-controls-overlay) {
-        body {
-          padding-top: env(titlebar-area-height, 32px);
-        }
-        
-        .titlebar-area {
-          position: fixed;
-          top: 0;
-          left: env(titlebar-area-x, 0);
-          width: env(titlebar-area-width, 100%);
-          height: env(titlebar-area-height, 32px);
-          background: var(--primary);
-          color: var(--primary-foreground);
-          z-index: 1000;
-          display: flex;
-          align-items: center;
-          padding: 0 16px;
-          font-weight: 600;
-        }
-      }
-
-      /* Custom window controls styling */
-      .window-controls {
-        -webkit-app-region: no-drag;
-        app-region: no-drag;
-      }
-
-      .titlebar-drag-region {
-        -webkit-app-region: drag;
-        app-region: drag;
-      }
-
-      /* Responsive design optimizations for desktop */
-      @media (min-width: 768px) {
-        body {
-          cursor: default;
-        }
-        
-        /* Better focus indicators for keyboard navigation */
-        button:focus-visible,
-        input:focus-visible,
-        select:focus-visible,
-        textarea:focus-visible {
-          outline: 2px solid #3b82f6;
-          outline-offset: 2px;
-        }
-      }
-    </style>
   </head>
 
   <body>
-    <!-- Window Controls Overlay titlebar -->
-    <div class="titlebar-area titlebar-drag-region" id="titlebar" style="display: none;">
-      <span>Sistema de Gestão Avícola</span>
-    </div>
-
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Service Worker Registration with advanced features -->
+    <!-- Service Worker Registration -->
     <script>
-      // Register Service Worker
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', async () => {
-          try {
-            const registration = await navigator.serviceWorker.register('/sw.js', {
-              scope: '/',
-              updateViaCache: 'none'
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
             });
-            
-            console.log('SW registered:', registration);
-
-            // Handle service worker updates
-            registration.addEventListener('updatefound', () => {
-              const newWorker = registration.installing;
-              if (newWorker) {
-                newWorker.addEventListener('statechange', () => {
-                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    // New version available
-                    if (confirm('Nova versão disponível! Deseja atualizar?')) {
-                      window.location.reload();
-                    }
-                  }
-                });
-              }
-            });
-
-          } catch (error) {
-            console.log('SW registration failed:', error);
-          }
         });
       }
-
-      // Show titlebar in Window Controls Overlay mode
-      if (window.matchMedia('(display-mode: window-controls-overlay)').matches) {
-        document.getElementById('titlebar').style.display = 'flex';
-      }
-
-      // Handle protocol registration
-      if ('registerProtocolHandler' in navigator) {
-        navigator.registerProtocolHandler('gestao-avicola', '/handle-protocol?url=%s');
-      }
-
-      // Install prompt handling
-      let installPrompt = null;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        installPrompt = e;
-        
-        // Show custom install button or banner
-        console.log('App can be installed');
-      });
-
-      // Handle app installed
-      window.addEventListener('appinstalled', () => {
-        console.log('App installed successfully');
-        installPrompt = null;
-      });
-
-      // Keyboard shortcuts for desktop
-      document.addEventListener('keydown', (e) => {
-        // Ctrl+R or F5 for refresh
-        if ((e.ctrlKey && e.key === 'r') || e.key === 'F5') {
-          e.preventDefault();
-          window.location.reload();
-        }
-        
-        // Ctrl+Shift+I for DevTools (in development)
-        if (e.ctrlKey && e.shiftKey && e.key === 'I') {
-          console.log('DevTools shortcut pressed');
-        }
-      });
-
-      // Handle window resize for responsive design
-      window.addEventListener('resize', () => {
-        // Dispatch custom event for components to handle resize
-        window.dispatchEvent(new CustomEvent('app-resize', {
-          detail: {
-            width: window.innerWidth,
-            height: window.innerHeight
-          }
-        }));
-      });
     </script>
   </body>
 </html>

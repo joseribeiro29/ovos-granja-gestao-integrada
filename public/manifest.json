@@ -2,133 +2,39 @@
 {
   "name": "Sistema de Gestão Avícola",
   "short_name": "Gestão Avícola",
-  "description": "Sistema completo de gestão para granjas de ovos com integração total ao Windows",
+  "description": "Sistema completo de gestão para granjas de ovos",
   "start_url": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
-  "background_color": "#1e293b",
+  "background_color": "#3b82f6",
   "theme_color": "#3b82f6",
-  "orientation": "any",
-  "scope": "/",
-  "id": "gestao-avicola-app",
-  "lang": "pt-BR",
-  "dir": "ltr",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icons/icon-16.png",
-      "sizes": "16x16",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-32.png",
-      "sizes": "32x32",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-48.png",
-      "sizes": "48x48",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-72.png",
-      "sizes": "72x72",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-96.png",
-      "sizes": "96x96",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-128.png",
-      "sizes": "128x128",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-144.png",
-      "sizes": "144x144",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-152.png",
-      "sizes": "152x152",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-384.png",
-      "sizes": "384x384",
       "type": "image/png"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ],
-  "categories": ["business", "productivity", "finance"],
-  "protocol_handlers": [
-    {
-      "protocol": "gestao-avicola",
-      "url": "/handle-protocol?url=%s"
-    }
-  ],
-  "share_target": {
-    "action": "/share-target",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "files",
-          "accept": ["image/*", ".pdf", ".xlsx", ".csv"]
-        }
-      ]
-    }
-  },
+  "categories": ["business", "productivity"],
   "shortcuts": [
     {
       "name": "Dashboard",
       "short_name": "Dashboard",
-      "description": "Acesso rápido ao painel principal",
+      "description": "Acesso rápido ao dashboard",
       "url": "/",
-      "icons": [{ "src": "/icons/shortcut-dashboard.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Produção de Ovos",
       "short_name": "Ovos",
-      "description": "Registrar produção diária",
+      "description": "Registro de produção",
       "url": "/ovos",
-      "icons": [{ "src": "/icons/shortcut-ovos.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Vendas",
-      "short_name": "Vendas",
-      "description": "Gerenciar vendas",
-      "url": "/vendas",
-      "icons": [{ "src": "/icons/shortcut-vendas.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Relatórios",
-      "short_name": "Relatórios",
-      "description": "Ver relatórios detalhados",
-      "url": "/relatorios",
-      "icons": [{ "src": "/icons/shortcut-relatorios.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
-  ],
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "launch_handler": {
-    "client_mode": "focus-existing"
-  }
+  ]
 }
