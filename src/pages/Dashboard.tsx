@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +15,7 @@ import {
   Settings,
   Calculator
 } from "lucide-react";
+import OfflineManager from "@/components/OfflineManager";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -108,6 +110,11 @@ const Dashboard = () => {
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Controle completo da sua produção de ovos - desde a compra de insumos até a venda final
           </p>
+        </div>
+
+        {/* Offline Manager */}
+        <div className="mb-8">
+          <OfflineManager />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
