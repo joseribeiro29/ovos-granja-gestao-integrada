@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +21,7 @@ interface Insumo {
   unidade: string;
   fatorConversaoKg: number;
   estoqueMinimo: number;
+  precoKg?: number; // Added optional precoKg property
 }
 
 interface Ingrediente {
