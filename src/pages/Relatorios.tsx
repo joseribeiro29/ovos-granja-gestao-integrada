@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,6 +70,9 @@ interface ConsumoRacao {
 
 const Relatorios = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
   const [galpoes, setGalpoes] = useState<Galpao[]>([]);
   const [producoes, setProducoes] = useState<ProducaoOvo[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
@@ -80,84 +84,117 @@ const Relatorios = () => {
   const [insumos, setInsumos] = useState<any[]>([]);
 
   useEffect(() => {
-    const savedGalpoes = localStorage.getItem('galpoes');
-    if (savedGalpoes) {
-      setGalpoes(JSON.parse(savedGalpoes));
-    }
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        console.log('Carregando dados dos relatórios...');
 
-    const savedProducoes = localStorage.getItem('producaoOvos');
-    if (savedProducoes) {
-      setProducoes(JSON.parse(savedProducoes));
-    }
+        // Carregar dados do localStorage com fallbacks seguros
+        const savedGalpoes = localStorage.getItem('galpoes');
+        const savedProducoes = localStorage.getItem('producaoOvos');
+        const savedVendas = localStorage.getItem('vendas');
+        const savedCompras = localStorage.getItem('comprasInsumos');
+        const savedDespesas = localStorage.getItem('despesas');
+        const savedConsumos = localStorage.getItem('consumosRacao');
+        const savedEstoqueOvos = localStorage.getItem('estoqueCentralOvos');
+        const savedEstoqueRacao = localStorage.getItem('estoqueRacao');
+        const savedInsumos = localStorage.getItem('insumos');
 
-    const savedVendas = localStorage.getItem('vendas');
-    if (savedVendas) {
-      setVendas(JSON.parse(savedVendas));
-    }
+        // Parse com fallbacks seguros
+        setGalpoes(savedGalpoes ? JSON.parse(savedGalpoes) : []);
+        setProducoes(savedProducoes ? JSON.parse(savedProducoes) : []);
+        setVendas(savedVendas ? JSON.parse(savedVendas) : []);
+        setCompras(savedCompras ? JSON.parse(savedCompras) : []);
+        setDespesas(savedDespesas ? JSON.parse(savedDespesas) : []);
+        setConsumos(savedConsumos ? JSON.parse(savedConsumos) : []);
+        setEstoqueCentralOvos(savedEstoqueOvos ? JSON.parse(savedEstoqueOvos) : { quantidade: 0, perdas: 0 });
+        setEstoqueRacao(savedEstoqueRacao ? JSON.parse(savedEstoqueRacao) : { quantidade: 0 });
+        setInsumos(savedInsumos ? JSON.parse(savedInsumos) : []);
 
-    const savedCompras = localStorage.getItem('comprasInsumos');
-    if (savedCompras) {
-      setCompras(JSON.parse(savedCompras));
-    }
+        console.log('Dados carregados com sucesso');
+        setError(null);
+      } catch (err) {
+        console.error('Erro ao carregar dados:', err);
+        setError('Erro ao carregar dados dos relatórios');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    const savedDespesas = localStorage.getItem('despesas');
-    if (savedDespesas) {
-      setDespesas(JSON.parse(savedDespesas));
-    }
-
-    const savedConsumos = localStorage.getItem('consumosRacao');
-    if (savedConsumos) {
-      setConsumos(JSON.parse(savedConsumos));
-    }
-
-    const savedEstoqueOvos = localStorage.getItem('estoqueCentralOvos');
-    if (savedEstoqueOvos) {
-      setEstoqueCentralOvos(JSON.parse(savedEstoqueOvos));
-    }
-
-    const savedEstoqueRacao = localStorage.getItem('estoqueRacao');
-    if (savedEstoqueRacao) {
-      setEstoqueRacao(JSON.parse(savedEstoqueRacao));
-    }
-
-    const savedInsumos = localStorage.getItem('insumos');
-    if (savedInsumos) {
-      setInsumos(JSON.parse(savedInsumos));
-    }
+    loadData();
   }, []);
 
-  // Calcular KPIs principais
-  const totalAves = galpoes.reduce((acc, galpao) => acc + galpao.qtdeAves, 0);
+  // Mostrar tela de carregamento
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Carregando relatórios...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Mostrar tela de erro
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Erro ao Carregar</h3>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()} className="w-full">
+              Tentar Novamente
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Calcular KPIs principais com proteção contra erros
+  const totalAves = Array.isArray(galpoes) ? galpoes.reduce((acc, galpao) => acc + (galpao?.qtdeAves || 0), 0) : 0;
   
   const hoje = new Date().toISOString().split('T')[0];
-  const producaoHoje = producoes.filter(p => p.data === hoje).reduce((acc, p) => acc + p.ovosBons, 0);
+  const producaoHoje = Array.isArray(producoes) ? 
+    producoes.filter(p => p?.data === hoje).reduce((acc, p) => acc + (p?.ovosBons || 0), 0) : 0;
   const taxaPosturaGeral = totalAves > 0 ? (producaoHoje / totalAves * 100).toFixed(1) : "0.0";
 
-  const custoMedioRacao = 2.50; // Este valor deveria vir das fórmulas de ração
+  const custoMedioRacao = 2.50;
 
   const mesAtual = new Date().getMonth();
   const anoAtual = new Date().getFullYear();
   
-  const vendasMesAtual = vendas.filter(v => {
+  const vendasMesAtual = Array.isArray(vendas) ? vendas.filter(v => {
+    if (!v?.data) return false;
     const dataVenda = new Date(v.data);
     return dataVenda.getMonth() === mesAtual && dataVenda.getFullYear() === anoAtual;
-  });
-  const receitaMesAtual = vendasMesAtual.reduce((acc, v) => acc + v.valorTotal, 0);
+  }) : [];
+  const receitaMesAtual = vendasMesAtual.reduce((acc, v) => acc + (v?.valorTotal || 0), 0);
 
-  const comprasMesAtual = compras.filter(c => {
+  const comprasMesAtual = Array.isArray(compras) ? compras.filter(c => {
+    if (!c?.data) return false;
     const dataCompra = new Date(c.data);
     return dataCompra.getMonth() === mesAtual && dataCompra.getFullYear() === anoAtual;
-  });
-  const despesasMesAtual = despesas.filter(d => {
+  }) : [];
+  
+  const despesasMesAtual = Array.isArray(despesas) ? despesas.filter(d => {
+    if (!d?.data) return false;
     const dataDespesa = new Date(d.data);
     return dataDespesa.getMonth() === mesAtual && dataDespesa.getFullYear() === anoAtual;
-  });
-  const custoMesAtual = comprasMesAtual.reduce((acc, c) => acc + c.valorTotal, 0) + 
-                       despesasMesAtual.reduce((acc, d) => acc + d.valor, 0);
+  }) : [];
+  
+  const custoMesAtual = comprasMesAtual.reduce((acc, c) => acc + (c?.valorTotal || 0), 0) + 
+                       despesasMesAtual.reduce((acc, d) => acc + (d?.valor || 0), 0);
 
-  const contasReceber = vendas.filter(v => v.status === 'Pendente').reduce((acc, v) => acc + v.valorTotal, 0);
+  const contasReceber = Array.isArray(vendas) ? 
+    vendas.filter(v => v?.status === 'Pendente').reduce((acc, v) => acc + (v?.valorTotal || 0), 0) : 0;
 
-  // Dados para gráficos
+  // Dados para gráficos com proteção
   const ultimos30Dias = Array.from({ length: 30 }, (_, i) => {
     const data = new Date();
     data.setDate(data.getDate() - i);
@@ -165,51 +202,63 @@ const Relatorios = () => {
   }).reverse();
 
   const producaoDiaria = ultimos30Dias.map(data => {
-    const producaoData = producoes.filter(p => p.data === data);
-    const totalOvos = producaoData.reduce((acc, p) => acc + p.ovosBons, 0);
+    const producaoData = Array.isArray(producoes) ? 
+      producoes.filter(p => p?.data === data) : [];
+    const totalOvos = producaoData.reduce((acc, p) => acc + (p?.ovosBons || 0), 0);
     return {
       data: new Date(data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
       ovos: totalOvos
     };
   });
 
-  const consumoPorGalpao = galpoes.map(galpao => {
-    const consumoGalpao = consumos.filter(c => c.galpaoId === galpao.id);
-    const totalConsumo = consumoGalpao.reduce((acc, c) => acc + c.quantidadeConsumida, 0);
+  const consumoPorGalpao = Array.isArray(galpoes) ? galpoes.map(galpao => {
+    const consumoGalpao = Array.isArray(consumos) ? 
+      consumos.filter(c => c?.galpaoId === galpao?.id) : [];
+    const totalConsumo = consumoGalpao.reduce((acc, c) => acc + (c?.quantidadeConsumida || 0), 0);
     return {
-      name: galpao.nome,
+      name: galpao?.nome || 'Sem nome',
       consumo: totalConsumo
     };
-  });
+  }) : [];
 
   const cores = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
-  // Alertas do sistema
+  // Alertas do sistema com proteção
   const alertas = [];
   
-  // Verificar insumos com estoque baixo
-  const estoqueInsumos = JSON.parse(localStorage.getItem('estoqueInsumos') || '[]');
-  estoqueInsumos.forEach((estoque: any) => {
-    const insumo = insumos.find(i => i.id === estoque.insumoId);
-    if (insumo && estoque.estoqueAtual < insumo.estoqueMinimo) {
-      alertas.push({
-        tipo: 'estoque',
-        mensagem: `${insumo.nome} - Estoque: ${estoque.estoqueAtual}kg (Mín: ${insumo.estoqueMinimo}kg)`
+  try {
+    // Verificar insumos com estoque baixo
+    const estoqueInsumos = JSON.parse(localStorage.getItem('estoqueInsumos') || '[]');
+    if (Array.isArray(estoqueInsumos) && Array.isArray(insumos)) {
+      estoqueInsumos.forEach((estoque: any) => {
+        const insumo = insumos.find(i => i?.id === estoque?.insumoId);
+        if (insumo && estoque?.estoqueAtual < insumo?.estoqueMinimo) {
+          alertas.push({
+            tipo: 'estoque',
+            mensagem: `${insumo.nome} - Estoque: ${estoque.estoqueAtual}kg (Mín: ${insumo.estoqueMinimo}kg)`
+          });
+        }
       });
     }
-  });
 
-  // Verificar contas vencidas
-  const dataAtual = new Date();
-  vendas.filter(v => v.status === 'Pendente' && v.dataVencimento).forEach(venda => {
-    const dataVenc = new Date(venda.dataVencimento!);
-    if (dataVenc < dataAtual) {
-      alertas.push({
-        tipo: 'vencimento',
-        mensagem: `${venda.cliente} - R$ ${venda.valorTotal.toFixed(2)} (Venc: ${dataVenc.toLocaleDateString('pt-BR')})`
+    // Verificar contas vencidas
+    const dataAtual = new Date();
+    if (Array.isArray(vendas)) {
+      vendas.filter(v => v?.status === 'Pendente' && v?.dataVencimento).forEach(venda => {
+        if (venda?.dataVencimento) {
+          const dataVenc = new Date(venda.dataVencimento);
+          if (dataVenc < dataAtual) {
+            alertas.push({
+              tipo: 'vencimento',
+              mensagem: `${venda.cliente || 'Cliente'} - R$ ${(venda.valorTotal || 0).toFixed(2)} (Venc: ${dataVenc.toLocaleDateString('pt-BR')})`
+            });
+          }
+        }
       });
     }
-  });
+  } catch (err) {
+    console.error('Erro ao processar alertas:', err);
+  }
 
   const chartConfig = {
     ovos: {
@@ -324,16 +373,25 @@ const Relatorios = () => {
                   <CardTitle>Produção Diária (Últimos 30 dias)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={producaoDiaria}>
-                        <XAxis dataKey="data" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Line dataKey="ovos" stroke="var(--color-ovos)" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
+                  {producaoDiaria.length > 0 ? (
+                    <ChartContainer config={chartConfig} className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={producaoDiaria}>
+                          <XAxis dataKey="data" />
+                          <YAxis />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Line dataKey="ovos" stroke="var(--color-ovos)" strokeWidth={2} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center text-gray-500">
+                      <div className="text-center">
+                        <BarChart3 className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <p>Nenhum dado de produção disponível</p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -342,37 +400,48 @@ const Relatorios = () => {
                   <CardTitle>Consumo de Ração por Galpão</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsPieChart>
-                        <Pie
-                          data={consumoPorGalpao}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={100}
-                          paddingAngle={5}
-                          dataKey="consumo"
-                        >
-                          {consumoPorGalpao.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={cores[index % cores.length]} />
-                          ))}
-                        </Pie>
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                  <div className="mt-4">
-                    {consumoPorGalpao.map((item, index) => (
-                      <div key={item.name} className="flex items-center gap-2 mb-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: cores[index % cores.length] }}
-                        />
-                        <span className="text-sm">{item.name}: {item.consumo.toFixed(1)}kg</span>
+                  {consumoPorGalpao.length > 0 && consumoPorGalpao.some(item => item.consumo > 0) ? (
+                    <>
+                      <ChartContainer config={chartConfig} className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsPieChart>
+                            <Pie
+                              data={consumoPorGalpao}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={100}
+                              paddingAngle={5}
+                              dataKey="consumo"
+                            >
+                              {consumoPorGalpao.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={cores[index % cores.length]} />
+                              ))}
+                            </Pie>
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                      <div className="mt-4">
+                        {consumoPorGalpao.map((item, index) => (
+                          <div key={item.name} className="flex items-center gap-2 mb-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: cores[index % cores.length] }}
+                            />
+                            <span className="text-sm">{item.name}: {item.consumo.toFixed(1)}kg</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </>
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center text-gray-500">
+                      <div className="text-center">
+                        <PieChart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                        <p>Nenhum dado de consumo disponível</p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -413,26 +482,32 @@ const Relatorios = () => {
                   <CardTitle>Últimas Compras de Insumos</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Insumo</TableHead>
-                        <TableHead>Qtde</TableHead>
-                        <TableHead>Valor</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {compras.slice(-5).map((compra) => (
-                        <TableRow key={compra.id}>
-                          <TableCell>{new Date(compra.data).toLocaleDateString('pt-BR')}</TableCell>
-                          <TableCell className="font-medium">{compra.insumo}</TableCell>
-                          <TableCell>{compra.quantidade}kg</TableCell>
-                          <TableCell className="text-green-600">R$ {compra.valorTotal.toFixed(2)}</TableCell>
+                  {Array.isArray(compras) && compras.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Insumo</TableHead>
+                          <TableHead>Qtde</TableHead>
+                          <TableHead>Valor</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {compras.slice(-5).map((compra) => (
+                          <TableRow key={compra.id}>
+                            <TableCell>{new Date(compra.data).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell className="font-medium">{compra.insumo}</TableCell>
+                            <TableCell>{compra.quantidade}kg</TableCell>
+                            <TableCell className="text-green-600">R$ {compra.valorTotal.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>Nenhuma compra registrada</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -445,33 +520,40 @@ const Relatorios = () => {
                   <CardTitle>Produção por Galpão</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Galpão</TableHead>
-                        <TableHead>Aves</TableHead>
-                        <TableHead>Produção Hoje</TableHead>
-                        <TableHead>Taxa Postura</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {galpoes.map((galpao) => {
-                        const producaoGalpaoHoje = producoes.filter(p => p.galpaoId === galpao.id && p.data === hoje)
-                          .reduce((acc, p) => acc + p.ovosBons, 0);
-                        const taxaPostura = galpao.qtdeAves > 0 ? 
-                          (producaoGalpaoHoje / galpao.qtdeAves * 100).toFixed(1) : "0.0";
-                        
-                        return (
-                          <TableRow key={galpao.id}>
-                            <TableCell className="font-medium">{galpao.nome}</TableCell>
-                            <TableCell>{galpao.qtdeAves}</TableCell>
-                            <TableCell className="text-green-600">{producaoGalpaoHoje}</TableCell>
-                            <TableCell className="text-blue-600 font-medium">{taxaPostura}%</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                  {Array.isArray(galpoes) && galpoes.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Galpão</TableHead>
+                          <TableHead>Aves</TableHead>
+                          <TableHead>Produção Hoje</TableHead>
+                          <TableHead>Taxa Postura</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {galpoes.map((galpao) => {
+                          const producaoGalpaoHoje = Array.isArray(producoes) ? 
+                            producoes.filter(p => p?.galpaoId === galpao?.id && p?.data === hoje)
+                              .reduce((acc, p) => acc + (p?.ovosBons || 0), 0) : 0;
+                          const taxaPostura = galpao?.qtdeAves > 0 ? 
+                            (producaoGalpaoHoje / galpao.qtdeAves * 100).toFixed(1) : "0.0";
+                          
+                          return (
+                            <TableRow key={galpao.id}>
+                              <TableCell className="font-medium">{galpao.nome}</TableCell>
+                              <TableCell>{galpao.qtdeAves}</TableCell>
+                              <TableCell className="text-green-600">{producaoGalpaoHoje}</TableCell>
+                              <TableCell className="text-blue-600 font-medium">{taxaPostura}%</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>Nenhum galpão cadastrado</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -480,32 +562,39 @@ const Relatorios = () => {
                   <CardTitle>Histórico de Produção</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Galpão</TableHead>
-                        <TableHead>Ovos Bons</TableHead>
-                        <TableHead>Taxa Postura</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {producoes.slice(-10).map((producao) => {
-                        const galpao = galpoes.find(g => g.id === producao.galpaoId);
-                        const taxaPostura = galpao && galpao.qtdeAves > 0 ? 
-                          (producao.ovosBons / galpao.qtdeAves * 100).toFixed(1) : "0.0";
-                        
-                        return (
-                          <TableRow key={producao.id}>
-                            <TableCell>{new Date(producao.data).toLocaleDateString('pt-BR')}</TableCell>
-                            <TableCell className="font-medium">{producao.galpaoNome}</TableCell>
-                            <TableCell className="text-green-600">{producao.ovosBons}</TableCell>
-                            <TableCell className="text-blue-600 font-medium">{taxaPostura}%</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                  {Array.isArray(producoes) && producoes.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Galpão</TableHead>
+                          <TableHead>Ovos Bons</TableHead>
+                          <TableHead>Taxa Postura</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {producoes.slice(-10).map((producao) => {
+                          const galpao = Array.isArray(galpoes) ? 
+                            galpoes.find(g => g?.id === producao?.galpaoId) : null;
+                          const taxaPostura = galpao && galpao.qtdeAves > 0 ? 
+                            (producao.ovosBons / galpao.qtdeAves * 100).toFixed(1) : "0.0";
+                          
+                          return (
+                            <TableRow key={producao.id}>
+                              <TableCell>{new Date(producao.data).toLocaleDateString('pt-BR')}</TableCell>
+                              <TableCell className="font-medium">{producao.galpaoNome}</TableCell>
+                              <TableCell className="text-green-600">{producao.ovosBons}</TableCell>
+                              <TableCell className="text-blue-600 font-medium">{taxaPostura}%</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>Nenhuma produção registrada</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
