@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +30,8 @@ const RelatorioFinanceiro = () => {
     const transacoesTemp: TransacaoFinanceira[] = [];
     let saldoAcumulado = 0;
 
+    console.log('GERANDO RELATÓRIO FINANCEIRO - Período:', dataInicial, 'até', dataFinal);
+
     // Buscar vendas pagas
     const vendas = JSON.parse(localStorage.getItem('vendas') || '[]');
     const vendasPagas = vendas.filter((venda: any) => 
@@ -38,45 +39,53 @@ const RelatorioFinanceiro = () => {
       new Date(venda.data) >= new Date(dataInicial) &&
       new Date(venda.data) <= new Date(dataFinal)
     );
+    console.log('Vendas pagas encontradas:', vendasPagas.length);
 
-    // Buscar compras de insumos
+    // CORREÇÃO CRÍTICA: Buscar TODAS as compras de insumos
     const compras = JSON.parse(localStorage.getItem('compras') || '[]');
     const comprasNoperiodo = compras.filter((compra: any) =>
       new Date(compra.data) >= new Date(dataInicial) &&
       new Date(compra.data) <= new Date(dataFinal)
     );
+    console.log('Compras de insumos encontradas:', comprasNoperiodo.length);
 
-    // Buscar despesas
+    // CORREÇÃO CRÍTICA: Buscar TODAS as despesas
     const despesas = JSON.parse(localStorage.getItem('despesas') || '[]');
     const despesasNoperiodo = despesas.filter((despesa: any) =>
       new Date(despesa.data) >= new Date(dataInicial) &&
       new Date(despesa.data) <= new Date(dataFinal)
     );
+    console.log('Despesas encontradas:', despesasNoperiodo.length);
 
     // Agregar todas as transações
     const todasTransacoes = [
+      // ENTRADAS: Vendas pagas
       ...vendasPagas.map((venda: any) => ({
         data: venda.data,
-        descricao: `Venda de Ovos - Cliente ${venda.cliente}`,
-        entrada: venda.valorTotal,
+        descricao: `Venda de Ovos - Cliente ${venda.cliente || 'N/A'}`,
+        entrada: venda.valorTotal || 0,
         saida: 0,
         tipo: 'entrada'
       })),
+      // SAÍDAS: Compras de insumos
       ...comprasNoperiodo.map((compra: any) => ({
         data: compra.data,
-        descricao: `Compra de ${compra.insumo}`,
+        descricao: `Compra de ${compra.insumo} - ${compra.fornecedor || 'N/A'}`,
         entrada: 0,
-        saida: compra.valorTotal,
+        saida: compra.valorTotal || 0,
         tipo: 'saida'
       })),
+      // SAÍDAS: Despesas operacionais
       ...despesasNoperiodo.map((despesa: any) => ({
         data: despesa.data,
-        descricao: despesa.descricao,
+        descricao: despesa.descricao || 'Despesa',
         entrada: 0,
-        saida: despesa.valor,
+        saida: despesa.valor || 0,
         tipo: 'saida'
       }))
     ];
+
+    console.log('Total de transações agregadas:', todasTransacoes.length);
 
     // Ordenar por data
     todasTransacoes.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
@@ -95,6 +104,8 @@ const RelatorioFinanceiro = () => {
 
     setTransacoes(transacoesComSaldo);
     setSaldoTotal(saldoAcumulado);
+    
+    console.log('RELATÓRIO GERADO - Saldo final:', saldoAcumulado);
   };
 
   const formatarData = (data: string) => {
@@ -117,7 +128,7 @@ const RelatorioFinanceiro = () => {
               Relatório Financeiro
             </h1>
             <p className="text-gray-600">
-              Fluxo de caixa detalhado com todas as transações
+              Fluxo de caixa detalhado com todas as transações (vendas, compras de insumos e despesas)
             </p>
           </div>
           <Button onClick={() => navigate('/')} variant="outline">
@@ -179,6 +190,9 @@ const RelatorioFinanceiro = () => {
                     <div className="text-sm text-gray-600 mb-1">Total de Saídas</div>
                     <div className="text-2xl font-bold text-red-600">
                       {formatarValor(totalSaidas)}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      (Compras + Despesas)
                     </div>
                   </div>
                 </CardContent>

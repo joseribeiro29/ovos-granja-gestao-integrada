@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +61,26 @@ const ComprasInsumos = () => {
   const qtdeTotalKg = insumoSelecionado ? quantidade * insumoSelecionado.fatorConversaoKg : 0;
   const valorPorKg = qtdeTotalKg > 0 ? valorTotal / qtdeTotalKg : 0;
 
+  const updateEstoqueInsumos = (nomeInsumo: string, quantidadeKg: number, valorPorKg: number) => {
+    const savedEstoque = localStorage.getItem('estoqueInsumos');
+    const estoque = savedEstoque ? JSON.parse(savedEstoque) : {};
+    
+    if (!estoque[nomeInsumo]) {
+      estoque[nomeInsumo] = { quantidade: 0, valorPorKg: 0 };
+    }
+    
+    // CORREÇÃO CRÍTICA: Somar a quantidade ao estoque existente
+    const quantidadeAnterior = estoque[nomeInsumo].quantidade || 0;
+    estoque[nomeInsumo].quantidade = quantidadeAnterior + quantidadeKg;
+    
+    // Atualizar o valor por kg com o da compra mais recente
+    estoque[nomeInsumo].valorPorKg = valorPorKg;
+    
+    localStorage.setItem('estoqueInsumos', JSON.stringify(estoque));
+    
+    console.log(`ESTOQUE ATUALIZADO: ${nomeInsumo} - Quantidade anterior: ${quantidadeAnterior}kg, Adicionado: ${quantidadeKg}kg, Total: ${estoque[nomeInsumo].quantidade}kg`);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -84,6 +103,7 @@ const ComprasInsumos = () => {
       return;
     }
 
+    // ETAPA 1: Registrar a compra
     const compra: Compra = {
       id: Date.now().toString(),
       data: novaCompra.data,
@@ -100,24 +120,14 @@ const ComprasInsumos = () => {
     setCompras(updatedCompras);
     localStorage.setItem('compras', JSON.stringify(updatedCompras));
 
-    // Atualizar estoque de insumos
-    const savedEstoque = localStorage.getItem('estoqueInsumos');
-    const estoque = savedEstoque ? JSON.parse(savedEstoque) : {};
-    
-    if (!estoque[novaCompra.insumo]) {
-      estoque[novaCompra.insumo] = { quantidade: 0, valorPorKg: 0 };
-    }
-    
-    estoque[novaCompra.insumo].quantidade += qtdeTotalKg;
-    estoque[novaCompra.insumo].valorPorKg = valorPorKg;
-    
-    localStorage.setItem('estoqueInsumos', JSON.stringify(estoque));
+    // ETAPA 2: CORREÇÃO CRÍTICA - Atualizar estoque de insumos
+    updateEstoqueInsumos(novaCompra.insumo, qtdeTotalKg, valorPorKg);
 
     setNovaCompra({ data: '', insumo: '', quantidade: '', valorPorUnidade: '', fornecedor: '' });
     
     toast({
       title: "Sucesso",
-      description: `Compra registrada! ${qtdeTotalKg.toFixed(2)}kg adicionados ao estoque.`
+      description: `Compra registrada! ${qtdeTotalKg.toFixed(2)}kg adicionados ao estoque de ${novaCompra.insumo}.`
     });
   };
 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +19,11 @@ interface Formula {
   id: string;
   nome: string;
   faseAve: string;
-  ingredientes: any[];
+  ingredientes: {
+    insumo: string;
+    quantidade: number;
+    custo: number;
+  }[];
   custoTotalPor1000kg: number;
   custoPorKg: number;
 }
@@ -71,6 +74,52 @@ const ProducaoRacao = () => {
     localStorage.setItem('estoqueRacao', JSON.stringify(estoque));
   };
 
+  const debitarInsumosDoEstoque = (formula: Formula, quantidadeProduzida: number) => {
+    const savedEstoque = localStorage.getItem('estoqueInsumos');
+    const estoque = savedEstoque ? JSON.parse(savedEstoque) : {};
+    
+    // Calcular proporção baseada na quantidade produzida vs 1000kg da fórmula base
+    const proporcao = quantidadeProduzida / 1000;
+    
+    console.log(`INICIANDO DÉBITO DE INSUMOS - Produzindo: ${quantidadeProduzida}kg, Proporção: ${proporcao}`);
+    
+    // Percorrer cada ingrediente da fórmula
+    formula.ingredientes.forEach(ingrediente => {
+      const quantidadeNecessaria = ingrediente.quantidade * proporcao;
+      
+      if (estoque[ingrediente.insumo]) {
+        const quantidadeAnterior = estoque[ingrediente.insumo].quantidade || 0;
+        
+        if (quantidadeAnterior >= quantidadeNecessaria) {
+          estoque[ingrediente.insumo].quantidade = quantidadeAnterior - quantidadeNecessaria;
+          console.log(`DÉBITO: ${ingrediente.insumo} - Anterior: ${quantidadeAnterior}kg, Usado: ${quantidadeNecessaria}kg, Restante: ${estoque[ingrediente.insumo].quantidade}kg`);
+        } else {
+          console.warn(`AVISO: Estoque insuficiente de ${ingrediente.insumo}. Disponível: ${quantidadeAnterior}kg, Necessário: ${quantidadeNecessaria}kg`);
+          
+          // Ainda assim permite a produção, mas zera o estoque
+          estoque[ingrediente.insumo].quantidade = 0;
+          
+          toast({
+            title: "Aviso - Estoque Baixo",
+            description: `Estoque de ${ingrediente.insumo} estava insuficiente. Verifique as compras.`,
+            variant: "destructive"
+          });
+        }
+      } else {
+        console.warn(`ERRO: Insumo ${ingrediente.insumo} não encontrado no estoque`);
+        
+        toast({
+          title: "Erro no Estoque",
+          description: `Insumo ${ingrediente.insumo} não encontrado no estoque. Verifique o cadastro.`,
+          variant: "destructive"
+        });
+      }
+    });
+    
+    // Salvar o estoque atualizado
+    localStorage.setItem('estoqueInsumos', JSON.stringify(estoque));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -84,8 +133,18 @@ const ProducaoRacao = () => {
       return;
     }
 
+    if (!formulaSelecionada.ingredientes || formulaSelecionada.ingredientes.length === 0) {
+      toast({
+        title: "Erro",
+        description: "A fórmula selecionada não possui ingredientes cadastrados.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const custoTotal = (formData.quantidadeProduzida / 1000) * formulaSelecionada.custoTotalPor1000kg;
 
+    // ETAPA 1: Registrar a produção
     const novaProducao: ProducaoRacao = {
       id: Date.now().toString(),
       data: formData.data,
@@ -99,12 +158,15 @@ const ProducaoRacao = () => {
     const updatedProducoes = [...producoes, novaProducao];
     saveProducoes(updatedProducoes);
 
-    // Atualizar estoque central de ração
+    // ETAPA 2: Atualizar estoque central de ração
     updateEstoqueRacao(formData.quantidadeProduzida);
+
+    // ETAPA 3: CORREÇÃO CRÍTICA - Debitar insumos do estoque
+    debitarInsumosDoEstoque(formulaSelecionada, formData.quantidadeProduzida);
 
     toast({
       title: "Sucesso!",
-      description: `Produção registrada. ${formData.quantidadeProduzida}kg de ração adicionados ao estoque.`,
+      description: `Produção registrada. ${formData.quantidadeProduzida}kg de ração produzidos e insumos debitados do estoque.`,
     });
 
     setFormData({ data: "", formulaId: "", quantidadeProduzida: 0 });
