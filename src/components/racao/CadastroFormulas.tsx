@@ -73,9 +73,9 @@ const CadastroFormulas = () => {
     loadInsumos();
   }, []);
 
-  // useEffect para recalcular os totais sempre que os ingredientes mudarem
+  // useEffect para recalcular os totais TODA VEZ que os ingredientes mudarem
   useEffect(() => {
-    calcularTotais();
+    calcularTotaisEmTempoReal();
   }, [ingredientes]);
 
   const loadInsumos = () => {
@@ -103,28 +103,46 @@ const CadastroFormulas = () => {
     setFormulas(newFormulas);
   };
 
-  const calcularTotais = () => {
-    console.log('Calculando totais para ingredientes:', ingredientes);
+  const calcularTotaisEmTempoReal = () => {
+    console.log('🔄 Recalculando totais em tempo real para', ingredientes.length, 'ingredientes');
     
-    const pesoTotalCalculado = ingredientes.reduce((acc, ing) => {
-      const peso = Number(ing.quantidadeKg) || 0;
-      console.log(`Ingrediente ${ing.insumoNome}: ${peso} kg`);
-      return acc + peso;
+    if (ingredientes.length === 0) {
+      console.log('📋 Lista de ingredientes vazia - zerando totais');
+      setPesoTotal(0);
+      setCustoTotal(0);
+      setCustoPorKg(0);
+      return;
+    }
+
+    // Calcular PESO TOTAL (soma de todas as quantidades em KG)
+    const pesoTotalCalculado = ingredientes.reduce((somaTotal, ingrediente) => {
+      const peso = Number(ingrediente.quantidadeKg) || 0;
+      console.log(`📦 ${ingrediente.insumoNome}: ${peso} kg`);
+      return somaTotal + peso;
     }, 0);
     
-    const custoTotalCalculado = ingredientes.reduce((acc, ing) => {
-      const custo = Number(ing.custoIngrediente) || 0;
-      console.log(`Ingrediente ${ing.insumoNome}: R$ ${custo}`);
-      return acc + custo;
+    // Calcular CUSTO TOTAL (soma de todos os custos dos ingredientes)
+    const custoTotalCalculado = ingredientes.reduce((somaTotal, ingrediente) => {
+      const custo = Number(ingrediente.custoIngrediente) || 0;
+      console.log(`💰 ${ingrediente.insumoNome}: R$ ${custo.toFixed(2)}`);
+      return somaTotal + custo;
     }, 0);
     
+    // Calcular CUSTO POR KG (Custo Total ÷ Peso Total)
     let custoPorKgCalculado = 0;
     if (pesoTotalCalculado > 0) {
       custoPorKgCalculado = custoTotalCalculado / pesoTotalCalculado;
+      console.log(`🧮 Cálculo: R$ ${custoTotalCalculado.toFixed(2)} ÷ ${pesoTotalCalculado} kg = R$ ${custoPorKgCalculado.toFixed(2)}/kg`);
+    } else {
+      console.log('⚠️ Peso total é zero - não é possível calcular custo por kg');
     }
     
-    console.log(`Totais calculados - Peso: ${pesoTotalCalculado} kg, Custo: R$ ${custoTotalCalculado}, Custo/Kg: R$ ${custoPorKgCalculado}`);
+    console.log(`✅ TOTAIS FINAIS:`);
+    console.log(`   Peso Total: ${pesoTotalCalculado} kg`);
+    console.log(`   Custo Total: R$ ${custoTotalCalculado.toFixed(2)}`);
+    console.log(`   Custo por Kg: R$ ${custoPorKgCalculado.toFixed(2)}`);
     
+    // Atualizar os estados para refletir na tela
     setPesoTotal(pesoTotalCalculado);
     setCustoTotal(custoTotalCalculado);
     setCustoPorKg(custoPorKgCalculado);
@@ -173,7 +191,7 @@ const CadastroFormulas = () => {
       custoIngrediente: custoIngrediente
     };
 
-    console.log('Adicionando ingrediente:', novoIngredienteCompleto);
+    console.log('➕ Adicionando novo ingrediente:', novoIngredienteCompleto);
     setIngredientes([...ingredientes, novoIngredienteCompleto]);
     setNovoIngrediente({ insumoId: "", quantidadeKg: 0 });
     
@@ -184,7 +202,8 @@ const CadastroFormulas = () => {
   };
 
   const removerIngrediente = (id: string) => {
-    console.log('Removendo ingrediente com ID:', id);
+    const ingredienteRemovido = ingredientes.find(ing => ing.id === id);
+    console.log('➖ Removendo ingrediente:', ingredienteRemovido?.insumoNome);
     setIngredientes(ingredientes.filter(ing => ing.id !== id));
   };
 
@@ -218,7 +237,12 @@ const CadastroFormulas = () => {
       custoTotalPor1000kg: custoPorKg * 1000
     };
 
-    console.log('Salvando fórmula:', novaFormula);
+    console.log('💾 Salvando fórmula com totais corretos:', {
+      nome: novaFormula.nome,
+      pesoTotal: novaFormula.pesoTotalKg,
+      custoTotal: novaFormula.custoTotalFormula,
+      custoPorKg: novaFormula.custoPorKg
+    });
 
     let updatedFormulas;
     if (formulaEditando) {
