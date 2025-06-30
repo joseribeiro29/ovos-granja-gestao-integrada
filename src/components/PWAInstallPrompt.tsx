@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Download, X, Smartphone } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -31,16 +31,17 @@ const PWAInstallPrompt = () => {
 
     // Handle beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
+      console.log('beforeinstallprompt event triggered');
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       
-      // Show install prompt after 3 seconds if not dismissed before
+      // Show install prompt after 2 seconds if not dismissed before
       setTimeout(() => {
         const hasBeenDismissed = localStorage.getItem('pwa-install-dismissed');
         if (!hasBeenDismissed && !isInStandaloneMode) {
           setShowInstallPrompt(true);
         }
-      }, 3000);
+      }, 2000);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -52,7 +53,7 @@ const PWAInstallPrompt = () => {
         if (!hasBeenDismissed) {
           setShowInstallPrompt(true);
         }
-      }, 5000);
+      }, 3000);
     }
 
     return () => {
@@ -61,73 +62,89 @@ const PWAInstallPrompt = () => {
   }, []);
 
   const handleInstallClick = async () => {
+    console.log('Install button clicked');
     if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        console.log('PWA instalado com sucesso');
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        console.log('User choice:', outcome);
+        if (outcome === 'accepted') {
+          console.log('PWA instalado com sucesso');
+        } else {
+          console.log('Usuário recusou a instalação');
+        }
+        
+        setDeferredPrompt(null);
+        setShowInstallPrompt(false);
+      } catch (error) {
+        console.error('Erro ao instalar PWA:', error);
       }
-      
-      setDeferredPrompt(null);
-      setShowInstallPrompt(false);
     }
   };
 
   const handleDismiss = () => {
+    console.log('Install prompt dismissed');
     setShowInstallPrompt(false);
     localStorage.setItem('pwa-install-dismissed', 'true');
   };
 
+  // Don't show if already installed or dismissed
   if (isStandalone || !showInstallPrompt) {
     return null;
   }
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 max-w-md mx-auto">
-      <Card className="shadow-2xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-2">
-              <Smartphone className="h-5 w-5 text-blue-600" />
-              <CardTitle className="text-lg">Instalar App</CardTitle>
+      <Card className="bg-black text-white shadow-2xl border-0 rounded-xl overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Smartphone className="h-5 w-5 text-white flex-shrink-0" />
+              <span className="text-sm font-medium">
+                📱 Instale o App para uma experiência melhor
+              </span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDismiss}
-              className="h-6 w-6 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            
+            <div className="flex items-center gap-2">
+              {!isIOS && deferredPrompt && (
+                <Button 
+                  onClick={handleInstallClick}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md font-bold text-sm h-auto min-w-[80px]"
+                >
+                  <Download className="mr-1 h-3 w-3" />
+                  Instalar
+                </Button>
+              )}
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDismiss}
+                className="text-gray-300 hover:text-white hover:bg-gray-700 text-xs h-auto px-2 py-1"
+              >
+                Agora não
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDismiss}
+                className="h-6 w-6 p-0 text-gray-300 hover:text-white hover:bg-gray-700"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <CardDescription className="mb-4">
-            {isIOS 
-              ? "Para instalar este app, toque no botão compartilhar e selecione 'Adicionar à Tela de Início'"
-              : "Instale nosso app para acesso rápido e uma experiência melhor!"
-            }
-          </CardDescription>
-          
-          {!isIOS && deferredPrompt && (
-            <Button 
-              onClick={handleInstallClick}
-              className="w-full bg-blue-600 hover:bg-blue-700"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Instalar Agora
-            </Button>
-          )}
           
           {isIOS && (
-            <div className="text-sm text-gray-600 space-y-2">
-              <p className="font-medium">Para instalar no iOS:</p>
-              <ol className="list-decimal list-inside space-y-1 text-xs">
-                <li>Toque no botão de compartilhar (□↗)</li>
-                <li>Role para baixo e toque em "Adicionar à Tela de Início"</li>
-                <li>Toque em "Adicionar" no canto superior direito</li>
-              </ol>
+            <div className="mt-3 pt-3 border-t border-gray-700">
+              <div className="text-xs text-gray-300 space-y-1">
+                <p className="font-medium">Para instalar no iOS:</p>
+                <p>1. Toque no botão compartilhar (□↗)</p>
+                <p>2. Selecione "Adicionar à Tela de Início"</p>
+                <p>3. Toque em "Adicionar"</p>
+              </div>
             </div>
           )}
         </CardContent>
