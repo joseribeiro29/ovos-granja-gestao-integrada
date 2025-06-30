@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,24 +106,50 @@ const CadastroFormulas = () => {
   };
 
   const loadInsumos = () => {
+    console.log('Carregando insumos...');
     const savedInsumos = localStorage.getItem('insumos');
+    
     if (savedInsumos) {
       const insumosData = JSON.parse(savedInsumos);
+      console.log('Insumos base carregados:', insumosData);
       
       // Carregar preços dos insumos do estoque
       const savedEstoque = localStorage.getItem('estoqueInsumos');
+      console.log('Estoque encontrado:', savedEstoque);
+      
       if (savedEstoque) {
         const estoqueData = JSON.parse(savedEstoque);
-        const insumosComPreco = insumosData.map((insumo: Insumo) => ({
-          ...insumo,
-          precoPorKg: estoqueData[insumo.nome]?.valorPorKg || 0
-        }));
-        console.log('Insumos carregados com preços:', insumosComPreco);
+        console.log('Dados do estoque:', estoqueData);
+        
+        const insumosComPreco = insumosData.map((insumo: Insumo) => {
+          // Buscar o preço no estoque pelo nome do insumo
+          const estoqueItem = estoqueData.find((item: any) => 
+            item.nome === insumo.nome || item.insumoNome === insumo.nome
+          );
+          
+          const precoCalculado = estoqueItem ? (estoqueItem.valorPorKg || estoqueItem.precoUnitario || 0) : 0;
+          
+          console.log(`Insumo: ${insumo.nome}, Preço encontrado: ${precoCalculado}`);
+          
+          return {
+            ...insumo,
+            precoPorKg: precoCalculado
+          };
+        });
+        
+        console.log('Insumos com preços aplicados:', insumosComPreco);
         setInsumos(insumosComPreco);
       } else {
-        console.log('Insumos carregados sem preços:', insumosData);
-        setInsumos(insumosData);
+        console.log('Nenhum estoque encontrado, usando preços zerados');
+        const insumosComPrecoZero = insumosData.map((insumo: Insumo) => ({
+          ...insumo,
+          precoPorKg: 0
+        }));
+        setInsumos(insumosComPrecoZero);
       }
+    } else {
+      console.log('Nenhum insumo cadastrado encontrado');
+      setInsumos([]);
     }
   };
 
@@ -172,7 +197,8 @@ const CadastroFormulas = () => {
       nome: insumoSelecionado.nome,
       quantidade,
       precoPorKg,
-      custoIngrediente
+      custoIngrediente,
+      insumoCompleto: insumoSelecionado
     });
 
     const novoIngredienteCompleto: IngredienteFormula = {
@@ -189,12 +215,16 @@ const CadastroFormulas = () => {
     
     toast({
       title: "Sucesso!",
-      description: "Ingrediente adicionado à fórmula.",
+      description: `Ingrediente ${insumoSelecionado.nome} adicionado à fórmula.`,
     });
   };
 
   const removerIngrediente = (id: string) => {
     setIngredientes(ingredientes.filter(ing => ing.id !== id));
+    toast({
+      title: "Sucesso!",
+      description: "Ingrediente removido da fórmula.",
+    });
   };
 
   const salvarFormula = () => {
