@@ -1,13 +1,14 @@
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
 interface EstoqueItem {
   insumo: string;
-  entradasKg: number;
-  saidasKg: number;
-  estoqueAtualKg: number;
+  entradas: number;
+  saidas: number;
+  estoqueAtual: number;
   valorMedioKg: number;
   custoEstoque: number;
   estoqueMinimo: number;
@@ -15,43 +16,74 @@ interface EstoqueItem {
   fatorConversao: number;
 }
 
+interface Insumo {
+  id: string;
+  nome: string;
+  unidade: string;
+  fatorConversaoKg: number;
+  estoqueMinimo: number;
+}
+
 const EstoqueInsumos = () => {
-  // Mock data - em um sistema real, isso seria calculado automaticamente
-  const estoque: EstoqueItem[] = [
-    {
-      insumo: 'Milho',
-      entradasKg: 1000,
-      saidasKg: 200,
-      estoqueAtualKg: 800,
-      valorMedioKg: 1.30,
-      custoEstoque: 1040,
-      estoqueMinimo: 100,
-      unidadeCompra: 'Saco',
-      fatorConversao: 50
-    },
-    {
-      insumo: 'Soja',
-      entradasKg: 500,
-      saidasKg: 100,
-      estoqueAtualKg: 400,
-      valorMedioKg: 2.80,
-      custoEstoque: 1120,
-      estoqueMinimo: 50,
-      unidadeCompra: 'Saco',
-      fatorConversao: 50
-    },
-    {
-      insumo: 'Farelo de Trigo',
-      entradasKg: 240,
-      saidasKg: 220,
-      estoqueAtualKg: 20,
-      valorMedioKg: 1.20,
-      custoEstoque: 24,
-      estoqueMinimo: 100,
-      unidadeCompra: 'Saco',
-      fatorConversao: 40
-    }
-  ];
+  const [estoque, setEstoque] = useState<EstoqueItem[]>([]);
+
+  useEffect(() => {
+    const carregarEstoque = () => {
+      console.log('=== CARREGANDO ESTOQUE DE INSUMOS ===');
+      
+      // Buscar insumos cadastrados
+      const savedInsumos = localStorage.getItem('insumos');
+      const insumos: Insumo[] = savedInsumos ? JSON.parse(savedInsumos) : [];
+      
+      // Buscar dados de estoque
+      const savedEstoque = localStorage.getItem('estoqueInsumos');
+      const dadosEstoque = savedEstoque ? JSON.parse(savedEstoque) : {};
+      
+      console.log('Insumos cadastrados:', insumos.length);
+      console.log('Dados de estoque:', dadosEstoque);
+      
+      // Construir lista de estoque
+      const estoqueAtualizado: EstoqueItem[] = insumos.map(insumo => {
+        const dadosInsumo = dadosEstoque[insumo.nome] || {
+          entradas: 0,
+          saidas: 0,
+          estoqueAtual: 0,
+          valorMedioKg: 0
+        };
+        
+        const custoEstoque = dadosInsumo.estoqueAtual * dadosInsumo.valorMedioKg;
+        
+        console.log(`Processando ${insumo.nome}:`, {
+          entradas: dadosInsumo.entradas,
+          saidas: dadosInsumo.saidas,
+          estoqueAtual: dadosInsumo.estoqueAtual,
+          valorMedioKg: dadosInsumo.valorMedioKg,
+          custoEstoque
+        });
+        
+        return {
+          insumo: insumo.nome,
+          entradas: dadosInsumo.entradas || 0,
+          saidas: dadosInsumo.saidas || 0,
+          estoqueAtual: dadosInsumo.estoqueAtual || 0,
+          valorMedioKg: dadosInsumo.valorMedioKg || 0,
+          custoEstoque: custoEstoque,
+          estoqueMinimo: insumo.estoqueMinimo || 0,
+          unidadeCompra: insumo.unidade,
+          fatorConversao: insumo.fatorConversaoKg
+        };
+      });
+      
+      console.log('Estoque final montado:', estoqueAtualizado);
+      setEstoque(estoqueAtualizado);
+    };
+
+    carregarEstoque();
+    
+    // Recarregar estoque quando dados mudarem
+    const interval = setInterval(carregarEstoque, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getStatusBadge = (atual: number, minimo: number) => {
     if (atual <= minimo) {
@@ -64,7 +96,8 @@ const EstoqueInsumos = () => {
   };
 
   const valorTotalEstoque = estoque.reduce((total, item) => total + item.custoEstoque, 0);
-  const alertasEstoque = estoque.filter(item => item.estoqueAtualKg <= item.estoqueMinimo).length;
+  const alertasEstoque = estoque.filter(item => item.estoqueAtual <= item.estoqueMinimo).length;
+  const totalKg = estoque.reduce((total, item) => total + item.estoqueAtual, 0);
 
   return (
     <div className="space-y-6">
@@ -93,7 +126,7 @@ const EstoqueInsumos = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {estoque.reduce((total, item) => total + item.estoqueAtualKg, 0).toFixed(0)} KG
+              {totalKg.toFixed(0)} KG
             </div>
           </CardContent>
         </Card>
@@ -117,7 +150,7 @@ const EstoqueInsumos = () => {
         <CardContent>
           {estoque.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
-              Nenhum item em estoque.
+              Nenhum insumo cadastrado ainda.
             </p>
           ) : (
             <Table>
@@ -137,17 +170,17 @@ const EstoqueInsumos = () => {
                 {estoque.map((item) => (
                   <TableRow key={item.insumo}>
                     <TableCell className="font-medium">{item.insumo}</TableCell>
-                    <TableCell>{item.entradasKg.toFixed(1)} KG</TableCell>
-                    <TableCell>{item.saidasKg.toFixed(1)} KG</TableCell>
-                    <TableCell className="font-medium text-green-600">
-                      {item.estoqueAtualKg.toFixed(1)} KG
+                    <TableCell className="text-green-600 font-medium">{item.entradas.toFixed(1)} KG</TableCell>
+                    <TableCell className="text-red-600">{item.saidas.toFixed(1)} KG</TableCell>
+                    <TableCell className="font-bold text-blue-600">
+                      {item.estoqueAtual.toFixed(1)} KG
                     </TableCell>
                     <TableCell className="text-sm text-gray-600">
-                      {(item.estoqueAtualKg / item.fatorConversao).toFixed(1)} {item.unidadeCompra}
+                      {(item.estoqueAtual / item.fatorConversao).toFixed(1)} {item.unidadeCompra}
                     </TableCell>
                     <TableCell>R$ {item.valorMedioKg.toFixed(2)}</TableCell>
-                    <TableCell>R$ {item.custoEstoque.toFixed(2)}</TableCell>
-                    <TableCell>{getStatusBadge(item.estoqueAtualKg, item.estoqueMinimo)}</TableCell>
+                    <TableCell className="font-medium">R$ {item.custoEstoque.toFixed(2)}</TableCell>
+                    <TableCell>{getStatusBadge(item.estoqueAtual, item.estoqueMinimo)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

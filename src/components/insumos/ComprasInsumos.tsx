@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,23 +63,44 @@ const ComprasInsumos = () => {
   const valorPorKg = qtdeTotalKg > 0 ? valorTotal / qtdeTotalKg : 0;
 
   const updateEstoqueInsumos = (nomeInsumo: string, quantidadeKg: number, valorPorKg: number) => {
+    console.log(`INICIANDO ATUALIZAÇÃO DE ESTOQUE para ${nomeInsumo}`);
+    
+    // Buscar estoque atual
     const savedEstoque = localStorage.getItem('estoqueInsumos');
     const estoque = savedEstoque ? JSON.parse(savedEstoque) : {};
     
+    console.log('Estoque antes da atualização:', estoque);
+    
+    // Inicializar insumo no estoque se não existir
     if (!estoque[nomeInsumo]) {
-      estoque[nomeInsumo] = { quantidade: 0, valorPorKg: 0 };
+      estoque[nomeInsumo] = { 
+        entradas: 0, 
+        saidas: 0, 
+        estoqueAtual: 0, 
+        valorMedioKg: 0 
+      };
+      console.log(`Insumo ${nomeInsumo} inicializado no estoque`);
     }
     
-    // CORREÇÃO CRÍTICA: Somar a quantidade ao estoque existente
-    const quantidadeAnterior = estoque[nomeInsumo].quantidade || 0;
-    estoque[nomeInsumo].quantidade = quantidadeAnterior + quantidadeKg;
+    // CORREÇÃO CRÍTICA: Somar a quantidade às entradas
+    const entradasAnteriores = estoque[nomeInsumo].entradas || 0;
+    const saidasAtuais = estoque[nomeInsumo].saidas || 0;
     
-    // Atualizar o valor por kg com o da compra mais recente
-    estoque[nomeInsumo].valorPorKg = valorPorKg;
+    estoque[nomeInsumo].entradas = entradasAnteriores + quantidadeKg;
+    estoque[nomeInsumo].estoqueAtual = estoque[nomeInsumo].entradas - saidasAtuais;
+    estoque[nomeInsumo].valorMedioKg = valorPorKg;
     
+    console.log(`ESTOQUE ATUALIZADO: ${nomeInsumo}`);
+    console.log(`- Entradas anteriores: ${entradasAnteriores}kg`);
+    console.log(`- Quantidade adicionada: ${quantidadeKg}kg`);
+    console.log(`- Novas entradas: ${estoque[nomeInsumo].entradas}kg`);
+    console.log(`- Saídas: ${saidasAtuais}kg`);
+    console.log(`- Estoque atual: ${estoque[nomeInsumo].estoqueAtual}kg`);
+    console.log(`- Valor por kg: R$ ${valorPorKg.toFixed(2)}`);
+    
+    // Salvar estoque atualizado
     localStorage.setItem('estoqueInsumos', JSON.stringify(estoque));
-    
-    console.log(`ESTOQUE ATUALIZADO: ${nomeInsumo} - Quantidade anterior: ${quantidadeAnterior}kg, Adicionado: ${quantidadeKg}kg, Total: ${estoque[nomeInsumo].quantidade}kg`);
+    console.log('Estoque salvo no localStorage:', estoque);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -103,6 +125,15 @@ const ComprasInsumos = () => {
       return;
     }
 
+    console.log('=== REGISTRANDO NOVA COMPRA ===');
+    console.log('Dados da compra:', {
+      insumo: novaCompra.insumo,
+      quantidade: quantidade,
+      qtdeTotalKg: qtdeTotalKg,
+      valorTotal: valorTotal,
+      valorPorKg: valorPorKg
+    });
+
     // ETAPA 1: Registrar a compra
     const compra: Compra = {
       id: Date.now().toString(),
@@ -119,6 +150,7 @@ const ComprasInsumos = () => {
     const updatedCompras = [...compras, compra];
     setCompras(updatedCompras);
     localStorage.setItem('compras', JSON.stringify(updatedCompras));
+    console.log('Compra registrada com sucesso');
 
     // ETAPA 2: CORREÇÃO CRÍTICA - Atualizar estoque de insumos
     updateEstoqueInsumos(novaCompra.insumo, qtdeTotalKg, valorPorKg);
@@ -129,6 +161,8 @@ const ComprasInsumos = () => {
       title: "Sucesso",
       description: `Compra registrada! ${qtdeTotalKg.toFixed(2)}kg adicionados ao estoque de ${novaCompra.insumo}.`
     });
+
+    console.log('=== COMPRA FINALIZADA COM SUCESSO ===');
   };
 
   return (
