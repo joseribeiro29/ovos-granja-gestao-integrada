@@ -106,6 +106,36 @@ export class StorageManager {
       console.error('Erro ao limpar dados:', error);
     }
   }
+
+  // Limpar dados específicos da aplicação
+  public clearApplicationData(): void {
+    try {
+      const keysToRemove = [
+        'insumos',
+        'estoqueInsumos',
+        'comprasInsumos',
+        'formulasRacao',
+        'estoqueRacao',
+        'producaoRacao',
+        'galpoes',
+        'producaoOvos',
+        'vendas',
+        'mortalidade',
+        'consumoRacao',
+        'despesas',
+        'contasReceber'
+      ];
+
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+        console.log(`Dados removidos: ${key}`);
+      });
+
+      console.log('Dados da aplicação foram limpos com sucesso');
+    } catch (error) {
+      console.error('Erro ao limpar dados da aplicação:', error);
+    }
+  }
 }
 
 export const storageManager = StorageManager.getInstance();
