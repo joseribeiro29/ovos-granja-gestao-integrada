@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
-import { ArrowDownUp, BarChart3, PieChart, TrendingUp } from "lucide-react";
+import { ArrowDownUp, BarChart3, PieChart, TrendingUp, AlertTriangle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell } from "recharts";
 
 interface Galpao {
   id: string;
@@ -41,6 +41,31 @@ interface Venda {
   qtdeVendida: number;
   valorUnitario: number;
   valorTotal: number;
+  status: string;
+  dataVencimento?: string;
+}
+
+interface Compra {
+  id: string;
+  data: string;
+  insumo: string;
+  quantidade: number;
+  valorTotal: number;
+}
+
+interface Despesa {
+  id: string;
+  data: string;
+  descricao: string;
+  valor: number;
+}
+
+interface ConsumoRacao {
+  id: string;
+  data: string;
+  galpaoId: string;
+  galpaoNome: string;
+  quantidadeConsumida: number;
 }
 
 const Relatorios = () => {
@@ -48,8 +73,12 @@ const Relatorios = () => {
   const [galpoes, setGalpoes] = useState<Galpao[]>([]);
   const [producoes, setProducoes] = useState<ProducaoOvo[]>([]);
   const [vendas, setVendas] = useState<Venda[]>([]);
+  const [compras, setCompras] = useState<Compra[]>([]);
+  const [despesas, setDespesas] = useState<Despesa[]>([]);
+  const [consumos, setConsumos] = useState<ConsumoRacao[]>([]);
   const [estoqueCentralOvos, setEstoqueCentralOvos] = useState({ quantidade: 0, perdas: 0 });
   const [estoqueRacao, setEstoqueRacao] = useState({ quantidade: 0 });
+  const [insumos, setInsumos] = useState<any[]>([]);
 
   useEffect(() => {
     const savedGalpoes = localStorage.getItem('galpoes');
@@ -67,6 +96,21 @@ const Relatorios = () => {
       setVendas(JSON.parse(savedVendas));
     }
 
+    const savedCompras = localStorage.getItem('comprasInsumos');
+    if (savedCompras) {
+      setCompras(JSON.parse(savedCompras));
+    }
+
+    const savedDespesas = localStorage.getItem('despesas');
+    if (savedDespesas) {
+      setDespesas(JSON.parse(savedDespesas));
+    }
+
+    const savedConsumos = localStorage.getItem('consumosRacao');
+    if (savedConsumos) {
+      setConsumos(JSON.parse(savedConsumos));
+    }
+
     const savedEstoqueOvos = localStorage.getItem('estoqueCentralOvos');
     if (savedEstoqueOvos) {
       setEstoqueCentralOvos(JSON.parse(savedEstoqueOvos));
@@ -76,47 +120,106 @@ const Relatorios = () => {
     if (savedEstoqueRacao) {
       setEstoqueRacao(JSON.parse(savedEstoqueRacao));
     }
+
+    const savedInsumos = localStorage.getItem('insumos');
+    if (savedInsumos) {
+      setInsumos(JSON.parse(savedInsumos));
+    }
   }, []);
 
-  // Calcular dados do dashboard
-  const totalVendasValor = vendas.reduce((acc, venda) => acc + venda.valorTotal, 0);
-  const totalOvosVendidos = vendas.reduce((acc, venda) => acc + venda.qtdeVendida, 0);
+  // Calcular KPIs principais
+  const totalAves = galpoes.reduce((acc, galpao) => acc + galpao.qtdeAves, 0);
+  
+  const hoje = new Date().toISOString().split('T')[0];
+  const producaoHoje = producoes.filter(p => p.data === hoje).reduce((acc, p) => acc + p.ovosBons, 0);
+  const taxaPosturaGeral = totalAves > 0 ? (producaoHoje / totalAves * 100).toFixed(1) : "0.0";
 
-  // Calcular idade dos lotes
-  const calcularIdade = (dataChegada: string) => {
-    if (!dataChegada) return { dias: 0, semanas: 0 };
-    
-    const hoje = new Date();
-    const chegada = new Date(dataChegada);
-    const diffTime = hoje.getTime() - chegada.getTime();
-    const dias = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const semanas = Math.floor(dias / 7);
-    
-    return { dias: Math.max(0, dias), semanas: Math.max(0, semanas) };
-  };
+  const custoMedioRacao = 2.50; // Este valor deveria vir das fórmulas de ração
 
-  // Dados para gráficos - produção por galpão
-  const producaoPorGalpao = galpoes.map(galpao => {
-    const producaoGalpao = producoes.filter(p => p.galpaoId === galpao.id);
-    const totalProducao = producaoGalpao.reduce((acc, p) => acc + p.ovosBons, 0);
+  const mesAtual = new Date().getMonth();
+  const anoAtual = new Date().getFullYear();
+  
+  const vendasMesAtual = vendas.filter(v => {
+    const dataVenda = new Date(v.data);
+    return dataVenda.getMonth() === mesAtual && dataVenda.getFullYear() === anoAtual;
+  });
+  const receitaMesAtual = vendasMesAtual.reduce((acc, v) => acc + v.valorTotal, 0);
+
+  const comprasMesAtual = compras.filter(c => {
+    const dataCompra = new Date(c.data);
+    return dataCompra.getMonth() === mesAtual && dataCompra.getFullYear() === anoAtual;
+  });
+  const despesasMesAtual = despesas.filter(d => {
+    const dataDespesa = new Date(d.data);
+    return dataDespesa.getMonth() === mesAtual && dataDespesa.getFullYear() === anoAtual;
+  });
+  const custoMesAtual = comprasMesAtual.reduce((acc, c) => acc + c.valorTotal, 0) + 
+                       despesasMesAtual.reduce((acc, d) => acc + d.valor, 0);
+
+  const contasReceber = vendas.filter(v => v.status === 'Pendente').reduce((acc, v) => acc + v.valorTotal, 0);
+
+  // Dados para gráficos
+  const ultimos30Dias = Array.from({ length: 30 }, (_, i) => {
+    const data = new Date();
+    data.setDate(data.getDate() - i);
+    return data.toISOString().split('T')[0];
+  }).reverse();
+
+  const producaoDiaria = ultimos30Dias.map(data => {
+    const producaoData = producoes.filter(p => p.data === data);
+    const totalOvos = producaoData.reduce((acc, p) => acc + p.ovosBons, 0);
     return {
-      name: galpao.nome,
-      producao: totalProducao
+      data: new Date(data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+      ovos: totalOvos
     };
   });
 
+  const consumoPorGalpao = galpoes.map(galpao => {
+    const consumoGalpao = consumos.filter(c => c.galpaoId === galpao.id);
+    const totalConsumo = consumoGalpao.reduce((acc, c) => acc + c.quantidadeConsumida, 0);
+    return {
+      name: galpao.nome,
+      consumo: totalConsumo
+    };
+  });
+
+  const cores = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+  // Alertas do sistema
+  const alertas = [];
+  
+  // Verificar insumos com estoque baixo
+  const estoqueInsumos = JSON.parse(localStorage.getItem('estoqueInsumos') || '[]');
+  estoqueInsumos.forEach((estoque: any) => {
+    const insumo = insumos.find(i => i.id === estoque.insumoId);
+    if (insumo && estoque.estoqueAtual < insumo.estoqueMinimo) {
+      alertas.push({
+        tipo: 'estoque',
+        mensagem: `${insumo.nome} - Estoque: ${estoque.estoqueAtual}kg (Mín: ${insumo.estoqueMinimo}kg)`
+      });
+    }
+  });
+
+  // Verificar contas vencidas
+  const dataAtual = new Date();
+  vendas.filter(v => v.status === 'Pendente' && v.dataVencimento).forEach(venda => {
+    const dataVenc = new Date(venda.dataVencimento!);
+    if (dataVenc < dataAtual) {
+      alertas.push({
+        tipo: 'vencimento',
+        mensagem: `${venda.cliente} - R$ ${venda.valorTotal.toFixed(2)} (Venc: ${dataVenc.toLocaleDateString('pt-BR')})`
+      });
+    }
+  });
+
   const chartConfig = {
-    producao: {
-      label: "Produção",
+    ovos: {
+      label: "Ovos",
       color: "#22c55e"
     },
-    perdas: {
-      label: "Perdas",
-      color: "#ef4444"
-    },
-    vendas: {
-      label: "Vendas",
-      color: "#3b82f6"
+    consumo: {
+      label: "Consumo",
+      color: "#f59e0b"
     }
   };
 
@@ -126,10 +229,10 @@ const Relatorios = () => {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Relatórios e Dashboard
+              Dashboard Gerencial
             </h1>
             <p className="text-gray-600">
-              Dashboards e relatórios gerenciais em tempo real
+              Sala de comando com indicadores em tempo real
             </p>
           </div>
           <Button onClick={() => navigate('/')} variant="outline">
@@ -138,59 +241,143 @@ const Relatorios = () => {
           </Button>
         </div>
 
-        {/* Dashboard de Estoques */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* KPIs Principais */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Estoque Central de Ovos</CardTitle>
+              <CardTitle className="text-sm font-medium">Total de Aves</CardTitle>
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{estoqueCentralOvos.quantidade}</div>
-              <p className="text-xs text-muted-foreground">ovos disponíveis</p>
+              <div className="text-2xl font-bold text-blue-600">{totalAves}</div>
+              <p className="text-xs text-muted-foreground">aves ativas</p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Perdas</CardTitle>
+              <CardTitle className="text-sm font-medium">Taxa de Postura</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{estoqueCentralOvos.perdas}</div>
-              <p className="text-xs text-muted-foreground">ovos quebrados</p>
+              <div className="text-2xl font-bold text-green-600">{taxaPosturaGeral}%</div>
+              <p className="text-xs text-muted-foreground">hoje</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Vendas</CardTitle>
-              <PieChart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">R$ {totalVendasValor.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">{totalOvosVendidos} ovos vendidos</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Estoque de Ração</CardTitle>
+              <CardTitle className="text-sm font-medium">Custo Médio Ração</CardTitle>
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">{estoqueRacao.quantidade}kg</div>
-              <p className="text-xs text-muted-foreground">ração disponível</p>
+              <div className="text-2xl font-bold text-orange-600">R$ {custoMedioRacao.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">por kg</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Receita (Mês)</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">R$ {receitaMesAtual.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">vendas do mês</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Custo (Mês)</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">R$ {custoMesAtual.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">compras + despesas</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Contas a Receber</CardTitle>
+              <PieChart className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">R$ {contasReceber.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">pendentes</p>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="estoques" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="estoques">Dashboard de Estoques</TabsTrigger>
+        <Tabs defaultValue="graficos" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="graficos">Gráficos</TabsTrigger>
+            <TabsTrigger value="estoques">Estoques</TabsTrigger>
             <TabsTrigger value="producao">Produção</TabsTrigger>
-            <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
+            <TabsTrigger value="alertas">Alertas</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="graficos">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Produção Diária (Últimos 30 dias)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={producaoDiaria}>
+                        <XAxis dataKey="data" />
+                        <YAxis />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Line dataKey="ovos" stroke="var(--color-ovos)" strokeWidth={2} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Consumo de Ração por Galpão</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsPieChart>
+                        <pie
+                          data={consumoPorGalpao}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={5}
+                          dataKey="consumo"
+                        >
+                          {consumoPorGalpao.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={cores[index % cores.length]} />
+                          ))}
+                        </pie>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                  <div className="mt-4">
+                    {consumoPorGalpao.map((item, index) => (
+                      <div key={item.name} className="flex items-center gap-2 mb-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: cores[index % cores.length] }}
+                        />
+                        <span className="text-sm">{item.name}: {item.consumo.toFixed(1)}kg</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
 
           <TabsContent value="estoques">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -224,30 +411,27 @@ const Relatorios = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Informações dos Galpões</CardTitle>
+                  <CardTitle>Últimas Compras de Insumos</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Galpão</TableHead>
-                        <TableHead>Lote</TableHead>
-                        <TableHead>Qtde Aves</TableHead>
-                        <TableHead>Idade (semanas)</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Insumo</TableHead>
+                        <TableHead>Qtde</TableHead>
+                        <TableHead>Valor</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {galpoes.map((galpao) => {
-                        const idade = calcularIdade(galpao.dataChegadaLote);
-                        return (
-                          <TableRow key={galpao.id}>
-                            <TableCell className="font-medium">{galpao.nome}</TableCell>
-                            <TableCell>{galpao.lote}</TableCell>
-                            <TableCell>{galpao.qtdeAves}</TableCell>
-                            <TableCell className="text-blue-600 font-medium">{idade.semanas}s</TableCell>
-                          </TableRow>
-                        );
-                      })}
+                      {compras.slice(-5).map((compra) => (
+                        <TableRow key={compra.id}>
+                          <TableCell>{new Date(compra.data).toLocaleDateString('pt-BR')}</TableCell>
+                          <TableCell className="font-medium">{compra.insumo}</TableCell>
+                          <TableCell>{compra.quantidade}kg</TableCell>
+                          <TableCell className="text-green-600">R$ {compra.valorTotal.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -262,16 +446,33 @@ const Relatorios = () => {
                   <CardTitle>Produção por Galpão</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={producaoPorGalpao}>
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="producao" fill="var(--color-producao)" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Galpão</TableHead>
+                        <TableHead>Aves</TableHead>
+                        <TableHead>Produção Hoje</TableHead>
+                        <TableHead>Taxa Postura</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {galpoes.map((galpao) => {
+                        const producaoGalpaoHoje = producoes.filter(p => p.galpaoId === galpao.id && p.data === hoje)
+                          .reduce((acc, p) => acc + p.ovosBons, 0);
+                        const taxaPostura = galpao.qtdeAves > 0 ? 
+                          (producaoGalpaoHoje / galpao.qtdeAves * 100).toFixed(1) : "0.0";
+                        
+                        return (
+                          <TableRow key={galpao.id}>
+                            <TableCell className="font-medium">{galpao.nome}</TableCell>
+                            <TableCell>{galpao.qtdeAves}</TableCell>
+                            <TableCell className="text-green-600">{producaoGalpaoHoje}</TableCell>
+                            <TableCell className="text-blue-600 font-medium">{taxaPostura}%</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
 
@@ -286,23 +487,21 @@ const Relatorios = () => {
                         <TableHead>Data</TableHead>
                         <TableHead>Galpão</TableHead>
                         <TableHead>Ovos Bons</TableHead>
-                        <TableHead>Perdas</TableHead>
-                        <TableHead>% Perdas</TableHead>
+                        <TableHead>Taxa Postura</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {producoes.slice(-10).map((producao) => {
-                        const total = producao.ovosBons + producao.ovosQuebrados;
-                        const percPerdas = total > 0 ? ((producao.ovosQuebrados / total) * 100).toFixed(1) : "0.0";
+                        const galpao = galpoes.find(g => g.id === producao.galpaoId);
+                        const taxaPostura = galpao && galpao.qtdeAves > 0 ? 
+                          (producao.ovosBons / galpao.qtdeAves * 100).toFixed(1) : "0.0";
+                        
                         return (
                           <TableRow key={producao.id}>
                             <TableCell>{new Date(producao.data).toLocaleDateString('pt-BR')}</TableCell>
                             <TableCell className="font-medium">{producao.galpaoNome}</TableCell>
                             <TableCell className="text-green-600">{producao.ovosBons}</TableCell>
-                            <TableCell className="text-red-600">{producao.ovosQuebrados}</TableCell>
-                            <TableCell className={`font-medium ${parseFloat(percPerdas) > 10 ? 'text-red-600' : 'text-gray-600'}`}>
-                              {percPerdas}%
-                            </TableCell>
+                            <TableCell className="text-blue-600 font-medium">{taxaPostura}%</TableCell>
                           </TableRow>
                         );
                       })}
@@ -313,68 +512,45 @@ const Relatorios = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="financeiro">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Resumo Financeiro</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
-                      <span>Total de Vendas:</span>
-                      <span className="font-bold text-green-600">R$ {totalVendasValor.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Ovos Vendidos:</span>
-                      <span className="font-medium">{totalOvosVendidos} unidades</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Preço Médio por Ovo:</span>
-                      <span className="font-medium">
-                        R$ {totalOvosVendidos > 0 ? (totalVendasValor / totalOvosVendidos).toFixed(2) : "0,00"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-t pt-2">
-                      <span>Estoque Atual:</span>
-                      <span className="font-bold text-blue-600">{estoqueCentralOvos.quantidade} ovos</span>
-                    </div>
-                    <div className="flex justify-between text-red-600">
-                      <span>Total de Perdas:</span>
-                      <span className="font-medium">{estoqueCentralOvos.perdas} ovos</span>
-                    </div>
+          <TabsContent value="alertas">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                  Alertas do Sistema
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {alertas.length > 0 ? (
+                  <div className="space-y-3">
+                    {alertas.map((alerta, index) => (
+                      <div 
+                        key={index} 
+                        className={`p-3 rounded-lg border-l-4 ${
+                          alerta.tipo === 'estoque' ? 'bg-red-50 border-red-500' : 'bg-yellow-50 border-yellow-500'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className={`h-4 w-4 ${
+                            alerta.tipo === 'estoque' ? 'text-red-500' : 'text-yellow-500'
+                          }`} />
+                          <span className="text-sm font-medium">
+                            {alerta.tipo === 'estoque' ? 'Estoque Baixo' : 'Conta Vencida'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{alerta.mensagem}</p>
+                      </div>
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Vendas Recentes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Qtde</TableHead>
-                        <TableHead>Valor</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {vendas.slice(-10).map((venda) => (
-                        <TableRow key={venda.id}>
-                          <TableCell>{new Date(venda.data).toLocaleDateString('pt-BR')}</TableCell>
-                          <TableCell className="font-medium">{venda.cliente}</TableCell>
-                          <TableCell>{venda.qtdeVendida}</TableCell>
-                          <TableCell className="text-green-600">R$ {venda.valorTotal.toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p>Nenhum alerta no momento</p>
+                    <p className="text-sm">Sistema funcionando normalmente</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

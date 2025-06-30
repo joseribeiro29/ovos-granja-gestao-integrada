@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +43,7 @@ interface DadosDiarios {
   producaoOvos: number;
   consumoRacao: number;
   perdas: number;
+  taxaPostura: number;
 }
 
 const RelatorioGalpao = () => {
@@ -95,6 +95,7 @@ const RelatorioGalpao = () => {
 
     const dataInicio = new Date(filtros.dataInicial);
     const dataFim = new Date(filtros.dataFinal);
+    const galpaoSelecionado = galpoes.find(g => g.id === filtros.galpaoId);
 
     // Filtrar dados por galpão e período
     const producoesFiltradas = producoes.filter(p => 
@@ -120,11 +121,17 @@ const RelatorioGalpao = () => {
           data: dataKey,
           producaoOvos: 0,
           consumoRacao: 0,
-          perdas: 0
+          perdas: 0,
+          taxaPostura: 0
         };
       }
       dadosAgrupados[dataKey].producaoOvos += producao.ovosBons;
       dadosAgrupados[dataKey].perdas += producao.ovosQuebrados;
+      
+      // Calcular taxa de postura
+      if (galpaoSelecionado && galpaoSelecionado.qtdeAves > 0) {
+        dadosAgrupados[dataKey].taxaPostura = (producao.ovosBons / galpaoSelecionado.qtdeAves) * 100;
+      }
     });
 
     // Adicionar dados de consumo
@@ -135,7 +142,8 @@ const RelatorioGalpao = () => {
           data: dataKey,
           producaoOvos: 0,
           consumoRacao: 0,
-          perdas: 0
+          perdas: 0,
+          taxaPostura: 0
         };
       }
       dadosAgrupados[dataKey].consumoRacao += consumo.quantidadeConsumida;
@@ -287,6 +295,7 @@ const RelatorioGalpao = () => {
                     <TableRow>
                       <TableHead>Data</TableHead>
                       <TableHead>Produção de Ovos (UNID)</TableHead>
+                      <TableHead>Taxa de Postura (%)</TableHead>
                       <TableHead>Consumo de Ração (KG)</TableHead>
                       <TableHead>Perdas (Ovos Quebrados)</TableHead>
                       <TableHead>% Perdas</TableHead>
@@ -304,6 +313,9 @@ const RelatorioGalpao = () => {
                           </TableCell>
                           <TableCell className="text-green-600 font-bold">
                             {dia.producaoOvos}
+                          </TableCell>
+                          <TableCell className="text-blue-600 font-bold">
+                            {dia.taxaPostura.toFixed(1)}%
                           </TableCell>
                           <TableCell className="text-orange-600 font-bold">
                             {dia.consumoRacao.toFixed(2)} kg

@@ -25,6 +25,7 @@ interface Galpao {
   qtdeAves: number;
   estoqueAtualOvosBons: number;
   totalGeralPerdas: number;
+  dataChegadaLote: string;
 }
 
 interface EventoMortalidade {
@@ -55,6 +56,16 @@ interface ConsumoRacao {
   quantidadeConsumida: number;
 }
 
+interface Afericao {
+  id: string;
+  data: string;
+  galpaoId: string;
+  galpaoNome: string;
+  pesoMedio: number;
+  uniformidade: number;
+  idadeSemanas: number;
+}
+
 const GestaoGalpao = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -62,10 +73,12 @@ const GestaoGalpao = () => {
   const [eventosMortalidade, setEventosMortalidade] = useState<EventoMortalidade[]>([]);
   const [eventosManejo, setEventosManejo] = useState<EventoManejo[]>([]);
   const [consumosRacao, setConsumosRacao] = useState<ConsumoRacao[]>([]);
+  const [afericoes, setAfericoes] = useState<Afericao[]>([]);
   const [formulas, setFormulas] = useState<any[]>([]);
   const [showMortalidadeForm, setShowMortalidadeForm] = useState(false);
   const [showManejoForm, setShowManejoForm] = useState(false);
   const [showConsumoForm, setShowConsumoForm] = useState(false);
+  const [showAfericaoForm, setShowAfericaoForm] = useState(false);
   
   const [mortalidadeForm, setMortalidadeForm] = useState({
     data: "",
@@ -87,6 +100,13 @@ const GestaoGalpao = () => {
     galpaoId: "",
     tipoRacao: "",
     quantidadeConsumida: 0
+  });
+
+  const [afericaoForm, setAfericaoForm] = useState({
+    data: "",
+    galpaoId: "",
+    pesoMedio: 0,
+    uniformidade: 0
   });
 
   useEffect(() => {
@@ -113,6 +133,11 @@ const GestaoGalpao = () => {
     const savedFormulas = localStorage.getItem('formulasRacao');
     if (savedFormulas) {
       setFormulas(JSON.parse(savedFormulas));
+    }
+
+    const savedAfericoes = localStorage.getItem('afericoesLote');
+    if (savedAfericoes) {
+      setAfericoes(JSON.parse(savedAfericoes));
     }
   }, []);
 
@@ -264,6 +289,48 @@ const GestaoGalpao = () => {
     setShowConsumoForm(false);
   };
 
+  const handleAfericaoSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const selectedGalpao = galpoes.find(g => g.id === afericaoForm.galpaoId);
+    if (!selectedGalpao) {
+      toast({
+        title: "Erro",
+        description: "Selecione um galpão válido.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Calcular idade do lote na data da aferição
+    const dataAfericao = new Date(afericaoForm.data);
+    const dataChegada = new Date(selectedGalpao.dataChegadaLote);
+    const diffTime = dataAfericao.getTime() - dataChegada.getTime();
+    const idadeSemanas = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+
+    const novaAfericao: Afericao = {
+      id: Date.now().toString(),
+      data: afericaoForm.data,
+      galpaoId: afericaoForm.galpaoId,
+      galpaoNome: selectedGalpao.nome,
+      pesoMedio: afericaoForm.pesoMedio,
+      uniformidade: afericaoForm.uniformidade,
+      idadeSemanas: Math.max(0, idadeSemanas)
+    };
+
+    const updatedAfericoes = [...afericoes, novaAfericao];
+    setAfericoes(updatedAfericoes);
+    localStorage.setItem('afericoesLote', JSON.stringify(updatedAfericoes));
+
+    toast({
+      title: "Sucesso!",
+      description: `Aferição registrada para ${selectedGalpao.nome} (${novaAfericao.idadeSemanas} semanas).`,
+    });
+
+    setAfericaoForm({ data: "", galpaoId: "", pesoMedio: 0, uniformidade: 0 });
+    setShowAfericaoForm(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
@@ -273,7 +340,7 @@ const GestaoGalpao = () => {
               Gestão de Galpão
             </h1>
             <p className="text-gray-600">
-              Controle completo de eventos, manejos e consumo de ração por galpão
+              Controle completo de eventos, manejos, consumo de ração e aferições do lote
             </p>
           </div>
           <Button onClick={() => navigate('/')} variant="outline">
@@ -283,10 +350,11 @@ const GestaoGalpao = () => {
         </div>
 
         <Tabs defaultValue="mortalidade" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="mortalidade">Mortalidade</TabsTrigger>
             <TabsTrigger value="manejo">Manejos</TabsTrigger>
             <TabsTrigger value="consumo">Consumo de Ração</TabsTrigger>
+            <TabsTrigger value="afericoes">Aferições do Lote</TabsTrigger>
           </TabsList>
 
           <TabsContent value="mortalidade">
@@ -606,6 +674,117 @@ const GestaoGalpao = () => {
                 {consumosRacao.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     Nenhum consumo registrado ainda.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="afericoes">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Registrar Aferição do Lote</CardTitle>
+                  <Button onClick={() => setShowAfericaoForm(!showAfericaoForm)}>
+                    <PlusIcon className="mr-2 h-4 w-4" />
+                    Nova Aferição
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {showAfericaoForm && (
+                  <form onSubmit={handleAfericaoSubmit} className="space-y-4 p-4 border rounded-lg bg-gray-50 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="dataAfericao">Data da Aferição</Label>
+                        <Input
+                          id="dataAfericao"
+                          type="date"
+                          value={afericaoForm.data}
+                          onChange={(e) => setAfericaoForm({ ...afericaoForm, data: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="galpaoAfericao">Galpão</Label>
+                        <Select value={afericaoForm.galpaoId} onValueChange={(value) => setAfericaoForm({ ...afericaoForm, galpaoId: value })}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o galpão" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {galpoes.map((galpao) => (
+                              <SelectItem key={galpao.id} value={galpao.id}>
+                                {galpao.nome} - Lote {galpao.lote}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="pesoMedio">Peso Médio das Aves (gramas)</Label>
+                        <Input
+                          id="pesoMedio"
+                          type="number"
+                          value={afericaoForm.pesoMedio}
+                          onChange={(e) => setAfericaoForm({ ...afericaoForm, pesoMedio: Number(e.target.value) })}
+                          placeholder="Ex: 1800"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="uniformidade">Uniformidade do Lote (%)</Label>
+                        <Input
+                          id="uniformidade"
+                          type="number"
+                          step="0.1"
+                          max="100"
+                          value={afericaoForm.uniformidade}
+                          onChange={(e) => setAfericaoForm({ ...afericaoForm, uniformidade: Number(e.target.value) })}
+                          placeholder="Ex: 85.5"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="submit">Registrar Aferição</Button>
+                      <Button type="button" variant="outline" onClick={() => setShowAfericaoForm(false)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Galpão</TableHead>
+                      <TableHead>Idade (Semanas)</TableHead>
+                      <TableHead>Peso Médio (g)</TableHead>
+                      <TableHead>Uniformidade (%)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {afericoes
+                      .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+                      .map((afericao) => (
+                      <TableRow key={afericao.id}>
+                        <TableCell>{new Date(afericao.data).toLocaleDateString('pt-BR')}</TableCell>
+                        <TableCell className="font-medium">{afericao.galpaoNome}</TableCell>
+                        <TableCell className="text-blue-600 font-bold">{afericao.idadeSemanas}s</TableCell>
+                        <TableCell className="text-green-600">{afericao.pesoMedio}g</TableCell>
+                        <TableCell className={`font-medium ${afericao.uniformidade >= 80 ? 'text-green-600' : 'text-yellow-600'}`}>
+                          {afericao.uniformidade.toFixed(1)}%
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                {afericoes.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    Nenhuma aferição registrada ainda.
                   </div>
                 )}
               </CardContent>
