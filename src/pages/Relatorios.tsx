@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart as RechartsPieChart, Cell, Pie } from "recharts";
 
 interface Galpao {
   id: string;
@@ -346,7 +345,7 @@ const Relatorios = () => {
                   <ChartContainer config={chartConfig} className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <RechartsPieChart>
-                        <pie
+                        <Pie
                           data={consumoPorGalpao}
                           cx="50%"
                           cy="50%"
@@ -358,7 +357,7 @@ const Relatorios = () => {
                           {consumoPorGalpao.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={cores[index % cores.length]} />
                           ))}
-                        </pie>
+                        </Pie>
                         <ChartTooltip content={<ChartTooltipContent />} />
                       </RechartsPieChart>
                     </ResponsiveContainer>
